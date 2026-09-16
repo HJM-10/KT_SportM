@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+  SCANNED
+}
+
+enum TournamentFormat {
+  LEAGUE
+  KNOCKOUT
+}
+
+enum TournamentStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+}
+
+model User {
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  password     String
+  phone        String?
+  role         Role          @default(CUSTOMER)
+  bookings     Booking[]
+  registrations TeamRegistration[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Sport {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  icon        String?
+  imageUrl    String?
+  isActive    Boolean      @default(true)
+  venues      Venue[]
+  tournaments Tournament[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Venue {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?
+  sportId     Int
+  sport       Sport         @relation(fields: [sportId], references: [id])
+  capacity    Int?
+  pricePerSlot Float        @default(0)
+  imageUrl    String?
+  isActive    Boolean       @default(true)
+  slots       BookingSlot[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model BookingSlot {
+  id        Int       @id @default(autoincrement())
+  venueId   Int
+  venue     Venue     @relation(fields: [venueId], references: [id])
+  date      DateTime  @db.Date
+  startTime String
+  endTime   String
+  isBooked  Boolean   @default(false)
+  booking   Booking?
+  createdAt DateTime  @default(now())
+}
+
+model Booking {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  user      User          @relation(fields: [userId], references: [id])
+  slotId    Int           @unique
+  slot      BookingSlot   @relation(fields: [slotId], references: [id])
+  status    BookingStatus @default(CONFIRMED)
+  qrCode    String?       @db.Text
+  qrToken   String?       @unique
+  totalPrice Float        @default(0)
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model Tournament {
+  id          Int              @id @default(autoincrement())
+  name        String
+  description String?
+  sportId     Int
+  sport       Sport            @relation(fields: [sportId], references: [id])
+  format      TournamentFormat @default(KNOCKOUT)
+  status      TournamentStatus @default(UPCOMING)
+  startDate   DateTime
+  endDate     DateTime?
+  maxTeams    Int              @default(8)
+  entryFee    Float            @default(0)
+  imageUrl    String?
+  matches     Match[]
+  registrations TeamRegistration[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Match {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  team1        String
+  team2        String
+  scheduledAt  DateTime
+  venue        String?
+  result       String?
+  team1Score   String?
+  team2Score   String?
+  winner       String?
+  round        String?
+  isCompleted  Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model TeamRegistration {
+  id           Int        @id @default(autoincrement())
+  tournamentId Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  userId       Int
+  user         User       @relation(fields: [userId], references: [id])
+  teamName     String
+  createdAt    DateTime   @default(now())
+
+  @@unique([tournamentId, userId])
+}
