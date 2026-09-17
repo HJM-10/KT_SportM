@@ -38,7 +38,10 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.stadium, size: 80, color: Color(0xFF6366F1)),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset('assets/logo.jpg', width: 100, height: 100, fit: BoxFit.cover),
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Smart Sports Hub',

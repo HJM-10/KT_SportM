@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
+const socket = require('../lib/socket');
 
 const getSlots = async (req, res) => {
   try {
@@ -99,7 +100,7 @@ const getAllBookings = async (req, res) => {
 
 const createBooking = async (req, res) => {
   try {
-    const { slotId, notes } = req.body;
+    const { slotId, notes, promoCode } = req.body;
     if (!slotId) return res.status(400).json({ success: false, message: 'slotId is required' });
 
     // Check slot availability
@@ -113,6 +114,39 @@ const createBooking = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot book a slot in the past' });
     }
 
+    const basePrice = slot.venue.pricePerSlot;
+    let membershipDiscount = 0;
+    let promoDiscount = 0;
+    let finalPrice = basePrice;
+    let promoCodeId = null;
+
+    // Membership logic
+    const membership = await prisma.membership.findUnique({ where: { userId: req.user.id } });
+    if (membership && membership.isActive) {
+      if (membership.tier === 'SILVER') membershipDiscount = basePrice * 0.10;
+      if (membership.tier === 'GOLD') membershipDiscount = basePrice * 0.20;
+    }
+    
+    finalPrice -= membershipDiscount;
+
+    // Promo code logic
+    if (promoCode) {
+      const promo = await prisma.promoCode.findUnique({ where: { code: promoCode } });
+      if (promo && promo.isActive && (!promo.expiresAt || new Date() <= promo.expiresAt) && (!promo.maxUses || promo.usedCount < promo.maxUses)) {
+        if (!promo.minOrderAmount || basePrice >= promo.minOrderAmount) {
+          if (promo.discountType === 'PERCENTAGE') {
+            promoDiscount = finalPrice * (promo.discountValue / 100);
+          } else {
+            promoDiscount = promo.discountValue;
+          }
+          promoCodeId = promo.id;
+        }
+      }
+    }
+    
+    finalPrice -= promoDiscount;
+    if (finalPrice < 0) finalPrice = 0;
+
     const qrToken = uuidv4();
     const qrPayload = JSON.stringify({ bookingId: null, token: qrToken, userId: req.user.id });
     const qrCode = await QRCode.toDataURL(qrPayload);
@@ -124,18 +158,49 @@ const createBooking = async (req, res) => {
           slotId: parseInt(slotId),
           qrToken,
           qrCode,
-          totalPrice: slot.venue.pricePerSlot,
-          notes
+          basePrice,
+          membershipDiscount,
+          promoDiscount,
+          finalPrice,
+          promoCodeId,
+          notes,
+          status: 'PENDING_PAYMENT'
         },
         include: {
           slot: { include: { venue: { include: { sport: { select: { name: true } } } } } }
         }
       });
       await tx.bookingSlot.update({ where: { id: parseInt(slotId) }, data: { isBooked: true } });
+      
+      if (promoCodeId) {
+         await tx.promoCode.update({ where: { id: promoCodeId }, data: { usedCount: { increment: 1 } } });
+         await tx.promoCodeUsage.create({ data: { promoCodeId, userId: req.user.id, bookingId: b.id } });
+      }
+
+      // Create Payment Record (Dummy Stripe)
+      const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
+      const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
+      
+      const payment = await tx.payment.create({
+        data: {
+          userId: req.user.id,
+          amount: finalPrice,
+          purpose: 'BOOKING',
+          stripePaymentIntentId,
+          stripeClientSecret,
+          bookingId: b.id,
+          status: 'PENDING'
+        }
+      });
+
+      b.clientSecret = stripeClientSecret;
+      b.paymentId = payment.id;
+
       return b;
     });
 
     res.status(201).json({ success: true, data: booking });
+    try { socket.getIO().emit('booking_updated', booking); } catch (e) {}
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -159,6 +224,7 @@ const cancelBooking = async (req, res) => {
     });
 
     res.json({ success: true, message: 'Booking cancelled' });
+    try { socket.getIO().emit('booking_updated', booking); } catch (e) {}
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -209,6 +275,7 @@ const scanBooking = async (req, res) => {
     });
 
     res.json({ success: true, message: 'Booking verified!', data: updated });
+    try { socket.getIO().emit('booking_updated', updated); } catch (e) {}
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });

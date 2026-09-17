@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CalendarCheck, Dumbbell, Trophy, Users } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import api from '../api/axios';
+import { socket } from '../services/socket';
 
 const DashboardPage = () => {
   const { user } = useAuthStore();
@@ -21,7 +22,7 @@ const DashboardPage = () => {
             totalBookings: bookingsRes.data.data.length,
             activeSports: sportsRes.data.data.length,
             tournaments: tournamentsRes.data.data.length,
-            revenue: bookingsRes.data.data.reduce((acc, b) => acc + (b.status !== 'CANCELLED' ? b.totalPrice : 0), 0)
+            revenue: bookingsRes.data.data.reduce((acc, b) => acc + (b.status !== 'CANCELLED' ? b.totalPrice || b.basePrice : 0), 0)
           });
         } else {
           const bookingsRes = await api.get('/bookings/my');
@@ -35,6 +36,17 @@ const DashboardPage = () => {
       }
     };
     fetchStats();
+
+    socket.connect();
+    socket.on('booking_updated', fetchStats);
+    socket.on('event_updated', fetchStats);
+    socket.on('complaint_updated', fetchStats);
+
+    return () => {
+      socket.off('booking_updated', fetchStats);
+      socket.off('event_updated', fetchStats);
+      socket.off('complaint_updated', fetchStats);
+    };
   }, [isAdmin]);
 
   return (

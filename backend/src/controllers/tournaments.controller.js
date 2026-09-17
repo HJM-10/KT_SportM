@@ -95,6 +95,8 @@ const updateTournament = async (req, res) => {
   }
 };
 
+const { v4: uuidv4 } = require('uuid');
+
 const registerForTournament = async (req, res) => {
   try {
     const { teamName } = req.body;
@@ -116,11 +118,39 @@ const registerForTournament = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Tournament has reached maximum team capacity' });
     }
 
-    const reg = await prisma.teamRegistration.create({
-      data: { tournamentId, userId: req.user.id, teamName: teamName || `Team ${req.user.id}` },
-      include: { tournament: { select: { id: true, name: true } } }
+    const result = await prisma.$transaction(async (tx) => {
+      const reg = await tx.teamRegistration.create({
+        data: { 
+          tournamentId, 
+          userId: req.user.id, 
+          teamName: teamName || `Team ${req.user.id}`
+        },
+        include: { tournament: { select: { id: true, name: true, entryFee: true } } }
+      });
+
+      if (tournament.entryFee > 0) {
+        const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
+        const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
+
+        const payment = await tx.payment.create({
+          data: {
+            userId: req.user.id,
+            amount: tournament.entryFee,
+            purpose: 'TOURNAMENT_REGISTRATION',
+            tournamentRegId: reg.id,
+            stripePaymentIntentId,
+            stripeClientSecret,
+            status: 'PENDING'
+          }
+        });
+        reg.clientSecret = stripeClientSecret;
+        reg.paymentId = payment.id;
+      }
+
+      return reg;
     });
-    res.status(201).json({ success: true, data: reg });
+
+    res.status(201).json({ success: true, data: result });
   } catch (err) {
     if (err.code === 'P2002') {
       return res.status(409).json({ success: false, message: 'Already registered for this tournament' });

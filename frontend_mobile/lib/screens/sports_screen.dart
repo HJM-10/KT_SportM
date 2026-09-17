@@ -23,13 +23,15 @@ class _SportsScreenState extends State<SportsScreen> {
   Future<void> _fetchSports() async {
     try {
       final res = await _apiService.dio.get('/sports');
-      setState(() {
-        _sports = res.data['data'];
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _sports = res.data['data'];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to load sports')),
         );
@@ -57,7 +59,6 @@ class _SportsScreenState extends State<SportsScreen> {
                   itemBuilder: (context, index) {
                     final sport = _sports[index];
                     return Card(
-                      color: const Color(0xFF16162A),
                       elevation: 4,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: Padding(

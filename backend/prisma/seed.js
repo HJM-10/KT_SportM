@@ -80,6 +80,57 @@ async function main() {
   });
   console.log('✅ Sample tournament created');
 
+  // Sample Events
+  await prisma.event.create({
+    data: {
+      name: 'Summer Cricket Coaching Camp',
+      description: 'Professional cricket coaching for all ages',
+      sportId: sports[0].id,
+      type: 'TRAINING',
+      startDate: new Date(Date.now() + 86400000 * 7), // 7 days from now
+      endDate: new Date(Date.now() + 86400000 * 14),
+      venue: 'Main Cricket Ground',
+      maxParticipants: 50,
+      fee: 2000,
+      status: 'UPCOMING'
+    }
+  });
+  console.log('✅ Sample event created');
+
+  // Sample Equipment
+  await prisma.equipment.create({
+    data: {
+      name: 'Professional Cricket Bat (Grade 1 English Willow)',
+      description: 'High quality cricket bat for matches',
+      sportId: sports[0].id,
+      pricePerSlot: 500,
+      quantity: 10,
+      isActive: true
+    }
+  });
+  await prisma.equipment.create({
+    data: {
+      name: 'Football (FIFA Pro Quality)',
+      description: 'Match quality football',
+      sportId: sports[1].id,
+      pricePerSlot: 300,
+      quantity: 20,
+      isActive: true
+    }
+  });
+  console.log('✅ Sample equipment created');
+
+  // Sample Promo Code
+  await prisma.promoCode.create({
+    data: {
+      code: 'WELCOME20',
+      discountType: 'PERCENTAGE',
+      discountValue: 20,
+      isActive: true
+    }
+  });
+  console.log('✅ Sample promo code created');
+
   console.log('\n🎉 Seeding complete!\n');
   console.log('Admin login:    admin@smartsportshub.com / admin123');
   console.log('Customer login: user@smartsportshub.com  / customer123');

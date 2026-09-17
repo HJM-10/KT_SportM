@@ -15,6 +15,13 @@ import MyBookingsPage from './pages/MyBookingsPage';
 import ScanBookingPage from './pages/ScanBookingPage';
 import SettingsPage from './pages/SettingsPage';
 
+import EventsPage from './pages/EventsPage';
+import EquipmentPage from './pages/EquipmentPage';
+import ComplaintsPage from './pages/ComplaintsPage';
+import PromoCodesPage from './pages/PromoCodesPage';
+import ReportsPage from './pages/ReportsPage';
+import PaymentsPage from './pages/PaymentsPage';
+
 function App() {
   return (
     <Router>
@@ -31,9 +38,16 @@ function App() {
           <Route path="my-bookings" element={<MyBookingsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           
+          <Route path="events" element={<EventsPage />} />
+          <Route path="equipment" element={<EquipmentPage />} />
+          <Route path="complaints" element={<ComplaintsPage />} />
+          
           {/* Admin Routes */}
           <Route path="bookings" element={<ProtectedRoute adminOnly><BookingsPage /></ProtectedRoute>} />
           <Route path="scan" element={<ProtectedRoute adminOnly><ScanBookingPage /></ProtectedRoute>} />
+          <Route path="promo" element={<ProtectedRoute adminOnly><PromoCodesPage /></ProtectedRoute>} />
+          <Route path="reports" element={<ProtectedRoute adminOnly><ReportsPage /></ProtectedRoute>} />
+          <Route path="payments" element={<ProtectedRoute adminOnly><PaymentsPage /></ProtectedRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

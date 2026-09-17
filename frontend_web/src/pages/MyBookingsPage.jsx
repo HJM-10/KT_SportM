@@ -11,7 +11,37 @@ const MyBookingsPage = () => {
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState(null);
+  
+  // Review state
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [reviewData, setReviewData] = useState({ venueId: null, bookingId: null, rating: 5, comment: '' });
+
   const navigate = useNavigate();
+
+  const openReviewModal = (booking) => {
+    setReviewData({
+      venueId: booking.slot.venue.id,
+      bookingId: booking.id,
+      rating: 5,
+      comment: ''
+    });
+    setReviewModalOpen(true);
+  };
+
+  const submitReview = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/venues/${reviewData.venueId}/reviews`, {
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        bookingId: reviewData.bookingId
+      });
+      toast.success('Review submitted successfully');
+      setReviewModalOpen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit review');
+    }
+  };
 
   const fetchBookings = async () => {
     try {
@@ -97,6 +127,11 @@ const MyBookingsPage = () => {
                       </button>
                     </>
                   )}
+                  {b.status === 'SCANNED' && (
+                    <button className="btn btn-secondary btn-sm bg-yellow-600 hover:bg-yellow-700" onClick={() => openReviewModal(b)}>
+                      Rate Experience
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -112,6 +147,57 @@ const MyBookingsPage = () => {
         onCancel={() => setConfirmOpen(false)}
         confirmText="Cancel Booking"
       />
+
+      {/* Review Modal */}
+      {reviewModalOpen && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-xl p-6 w-full max-w-md shadow-2xl relative">
+            <h2 className="text-xl font-bold text-white mb-4">Rate Your Experience</h2>
+            <form onSubmit={submitReview} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Rating (1-5)</label>
+                <div className="flex gap-2">
+                  {[1,2,3,4,5].map(star => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewData({...reviewData, rating: star})}
+                      className={`text-2xl transition-colors ${reviewData.rating >= star ? 'text-yellow-400' : 'text-gray-600'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Comment</label>
+                <textarea 
+                  value={reviewData.comment}
+                  onChange={e => setReviewData({...reviewData, comment: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-white h-24 resize-none focus:border-blue-500 outline-none"
+                  placeholder="Tell us about your experience..."
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button 
+                  type="button" 
+                  onClick={() => setReviewModalOpen(false)}
+                  className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
+                  Submit Review
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -19,6 +19,12 @@ const Sidebar = () => {
         { to: '/tournaments', icon: <Trophy />, label: 'Tournaments' },
         { to: '/matches', icon: <Swords />, label: 'Matches' },
         { to: '/bookings', icon: <CalendarCheck />, label: 'Bookings' },
+        { to: '/events', icon: <CalendarCheck />, label: 'Events' },
+        { to: '/equipment', icon: <Dumbbell />, label: 'Equipment' },
+        { to: '/payments', icon: <LayoutDashboard />, label: 'Payments' },
+        { to: '/promo', icon: <ScanLine />, label: 'Promo Codes' },
+        { to: '/complaints', icon: <Settings />, label: 'Complaints' },
+        { to: '/reports', icon: <LayoutDashboard />, label: 'Reports' },
         { to: '/settings', icon: <Settings />, label: 'Settings' },
       ]
     : [
@@ -26,7 +32,10 @@ const Sidebar = () => {
         { to: '/sports', icon: <Dumbbell />, label: 'Sports' },
         { to: '/tournaments', icon: <Trophy />, label: 'Tournaments' },
         { to: '/matches', icon: <Swords />, label: 'Matches' },
+        { to: '/events', icon: <CalendarCheck />, label: 'Events' },
+        { to: '/equipment', icon: <Dumbbell />, label: 'Equipment' },
         { to: '/my-bookings', icon: <CalendarCheck />, label: 'My Bookings' },
+        { to: '/complaints', icon: <Settings />, label: 'Complaints' },
         { to: '/settings', icon: <Settings />, label: 'Settings' },
       ];
 

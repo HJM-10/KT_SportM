@@ -11,6 +11,12 @@ import 'screens/my_bookings_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/theme_provider.dart';
 
+import 'screens/events_screen.dart';
+import 'screens/equipment_screen.dart';
+import 'screens/membership_screen.dart';
+import 'screens/complaints_screen.dart';
+import 'screens/notifications_screen.dart';
+
 void main() {
   runApp(
     MultiProvider(
@@ -33,45 +39,26 @@ class SmartSportsHubApp extends StatelessWidget {
         return MaterialApp(
           title: 'Smart Sports Hub',
           themeMode: themeProvider.themeMode,
-          theme: ThemeData(
-            primarySwatch: Colors.indigo,
-            scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF6366F1),
-              secondary: Color(0xFF06B6D4),
-              surface: Colors.white,
-            ),
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              elevation: 0,
-            ),
-          ),
-          darkTheme: ThemeData(
-            primarySwatch: Colors.indigo,
-            scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF6366F1),
-              secondary: Color(0xFF06B6D4),
-              surface: Color(0xFF16162A),
-            ),
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Color(0xFF16162A),
-              elevation: 0,
-            ),
-          ),
+          theme: ThemeProvider.lightTheme,
+          darkTheme: ThemeProvider.darkTheme,
           home: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
-          if (auth.isAuthenticated) {
-            return const MainLayout();
-          }
-          return const LoginScreen();
-        },
-      ),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignupScreen(),
-      },
+            builder: (context, auth, _) {
+              if (auth.isAuthenticated) {
+                return const MainLayout();
+              }
+              return const LoginScreen();
+            },
+          ),
+          routes: {
+            '/login': (context) => const LoginScreen(),
+            '/signup': (context) => const SignupScreen(),
+            '/events': (context) => const EventsScreen(),
+            '/equipment': (context) => const EquipmentScreen(),
+            '/membership': (context) => const MembershipScreen(),
+            '/complaints': (context) => const ComplaintsScreen(),
+            '/notifications': (context) => const NotificationsScreen(),
+          },
+        );
       },
     );
   }

@@ -26,13 +26,15 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
   Future<void> _fetchTournaments() async {
     try {
       final res = await _apiService.dio.get('/tournaments');
-      setState(() {
-        _tournaments = res.data['data'];
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
+        setState(() {
+          _tournaments = res.data['data'];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to load tournaments')),
         );
@@ -75,7 +77,6 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
                     final dateStr = DateFormat.yMMMd().format(DateTime.parse(t['startDate']));
                     
                     return Card(
-                      color: const Color(0xFF16162A),
                       margin: const EdgeInsets.only(bottom: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: Padding(

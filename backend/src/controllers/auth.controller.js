@@ -10,7 +10,9 @@ const register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name, email and password are required' });
     }
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const sanitizedEmail = email.trim().toLowerCase();
+
+    const existing = await prisma.user.findUnique({ where: { email: sanitizedEmail } });
     if (existing) {
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
@@ -20,7 +22,7 @@ const register = async (req, res) => {
     const userRole = role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER';
 
     const user = await prisma.user.create({
-      data: { name, email, password: hashed, phone, role: userRole },
+      data: { name, email: sanitizedEmail, password: hashed, phone, role: userRole },
       select: { id: true, name: true, email: true, phone: true, role: true, createdAt: true }
     });
 
@@ -45,7 +47,9 @@ const login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const sanitizedEmail = email.trim().toLowerCase();
+
+    const user = await prisma.user.findUnique({ where: { email: sanitizedEmail } });
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }

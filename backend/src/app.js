@@ -9,6 +9,16 @@ const venuesRoutes = require('./routes/venues.routes');
 const bookingsRoutes = require('./routes/bookings.routes');
 const tournamentsRoutes = require('./routes/tournaments.routes');
 const matchesRoutes = require('./routes/matches.routes');
+const paymentsRoutes = require('./routes/payments.routes');
+const reviewsRoutes = require('./routes/reviews.routes');
+const complaintsRoutes = require('./routes/complaints.routes');
+const eventsRoutes = require('./routes/events.routes');
+const equipmentRoutes = require('./routes/equipment.routes');
+const promoRoutes = require('./routes/promo.routes');
+const membershipRoutes = require('./routes/membership.routes');
+const notificationsRoutes = require('./routes/notifications.routes');
+const recommendationsRoutes = require('./routes/recommendations.routes');
+const reportsRoutes = require('./routes/reports.routes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -38,6 +48,16 @@ app.use('/api/venues', venuesRoutes);
 app.use('/api/bookings', bookingsRoutes);
 app.use('/api/tournaments', tournamentsRoutes);
 app.use('/api/matches', matchesRoutes);
+app.use('/api/payments', paymentsRoutes);
+app.use('/api/reviews', reviewsRoutes);
+app.use('/api/complaints', complaintsRoutes);
+app.use('/api/events', eventsRoutes);
+app.use('/api/equipment', equipmentRoutes);
+app.use('/api/promo', promoRoutes);
+app.use('/api/membership', membershipRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -50,10 +70,18 @@ app.use((err, req, res, next) => {
   res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
+const http = require('http');
+const socket = require('./lib/socket');
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+// Initialize Socket.io
+socket.init(server);
+
+server.listen(PORT, () => {
   console.log(`\n🚀 Smart Sports Hub API running on http://localhost:${PORT}`);
   console.log(`   Health: http://localhost:${PORT}/api/health\n`);
 });
 
-module.exports = app;
+module.exports = { app, server };

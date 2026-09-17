@@ -28,7 +28,9 @@ const SignupPage = () => {
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-logo">
-          <div className="auth-logo-icon text-white"><Building size={32} /></div>
+          <div className="auth-logo-icon">
+            <img src="/logo.jpg" alt="Smart Sports Hub" style={{ width: 64, height: 64, borderRadius: 16 }} />
+          </div>
           <div className="auth-title">Create Account</div>
           <div className="auth-subtitle">Join Smart Sports Hub today</div>
         </div>

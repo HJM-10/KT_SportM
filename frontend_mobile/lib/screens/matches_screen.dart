@@ -53,7 +53,6 @@ class _MatchesScreenState extends State<MatchesScreen> {
                     final dateStr = DateFormat('MMM d, yyyy - h:mm a').format(DateTime.parse(m['scheduledAt']));
                     
                     return Card(
-                      color: const Color(0xFF16162A),
                       margin: const EdgeInsets.only(bottom: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: Padding(
