@@ -57,6 +57,7 @@ class SmartSportsHubApp extends StatelessWidget {
             '/membership': (context) => const MembershipScreen(),
             '/complaints': (context) => const ComplaintsScreen(),
             '/notifications': (context) => const NotificationsScreen(),
+            '/settings': (context) => const SettingsScreen(),
           },
         );
       },
@@ -80,7 +81,6 @@ class _MainLayoutState extends State<MainLayout> {
     const TournamentsScreen(),
     const MatchesScreen(),
     const MyBookingsScreen(),
-    const SettingsScreen(),
   ];
 
   @override
@@ -91,8 +91,8 @@ class _MainLayoutState extends State<MainLayout> {
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF16162A),
-        selectedItemColor: const Color(0xFF6366F1),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Home'),
@@ -100,7 +100,6 @@ class _MainLayoutState extends State<MainLayout> {
           BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Tournaments'),
           BottomNavigationBarItem(icon: Icon(Icons.sports), label: 'Matches'),
           BottomNavigationBarItem(icon: Icon(Icons.book_online), label: 'Bookings'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
     );

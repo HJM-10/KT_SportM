@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/icon_helper.dart';
+import 'venues_screen.dart';
 
 class SportsScreen extends StatefulWidget {
   const SportsScreen({super.key});
@@ -58,7 +59,19 @@ class _SportsScreenState extends State<SportsScreen> {
                   itemCount: _sports.length,
                   itemBuilder: (context, index) {
                     final sport = _sports[index];
-                    return Card(
+                    return InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => VenuesScreen(
+                              sportId: sport['id'],
+                              sportName: sport['name'],
+                            ),
+                          ),
+                        );
+                      },
+                      child: Card(
                       elevation: 4,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       child: Padding(
@@ -87,6 +100,7 @@ class _SportsScreenState extends State<SportsScreen> {
                             ),
                           ],
                         ),
+                      ),
                       ),
                     );
                   },

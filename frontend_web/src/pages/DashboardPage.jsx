@@ -3,11 +3,32 @@ import { CalendarCheck, Dumbbell, Trophy, Users } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import api from '../api/axios';
 import { socket } from '../services/socket';
+import Joyride, { STATUS } from 'react-joyride';
+import { useNavigate } from 'react-router-dom';
 
 const DashboardPage = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [recentBookings, setRecentBookings] = useState([]);
+  
+  const [runTour, setRunTour] = useState(false);
+  const steps = [
+    {
+      target: '.sidebar',
+      content: 'This is the sidebar where you can navigate through the app. You can book venues, register for events, and manage equipment.',
+      disableBeacon: true,
+    },
+    {
+      target: '.stats-grid',
+      content: 'Here is your dashboard overview showing all your quick stats and upcoming bookings.',
+    },
+    {
+      target: '.page-header',
+      content: 'You can check your personalized dashboard and quickly navigate to everything you need!',
+    }
+  ];
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -24,6 +45,7 @@ const DashboardPage = () => {
             tournaments: tournamentsRes.data.data.length,
             revenue: bookingsRes.data.data.reduce((acc, b) => acc + (b.status !== 'CANCELLED' ? b.totalPrice || b.basePrice : 0), 0)
           });
+          setRecentBookings(bookingsRes.data.data.slice(0, 5));
         } else {
           const bookingsRes = await api.get('/bookings/my');
           setStats({
@@ -49,8 +71,40 @@ const DashboardPage = () => {
     };
   }, [isAdmin]);
 
+  useEffect(() => {
+    // Only run tour once per user session or device
+    const tourShown = localStorage.getItem('tourShown');
+    if (!tourShown) {
+      setRunTour(true);
+    }
+  }, []);
+
+  const handleJoyrideCallback = (data) => {
+    const { status } = data;
+    if ([STATUS.FINISHED, STATUS.SKIPPED].includes(status)) {
+      localStorage.setItem('tourShown', 'true');
+      setRunTour(false);
+    }
+  };
+
   return (
     <div>
+      <Joyride
+        steps={steps}
+        run={runTour}
+        continuous={true}
+        showSkipButton={true}
+        showProgress={true}
+        callback={handleJoyrideCallback}
+        styles={{
+          options: {
+            primaryColor: '#6366F1',
+            backgroundColor: '#1e1e38',
+            textColor: '#fff',
+            arrowColor: '#1e1e38',
+          }
+        }}
+      />
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
         <div className="page-subtitle">Welcome back, {user?.name}</div>
@@ -86,6 +140,45 @@ const DashboardPage = () => {
                 <div>
                   <div className="stat-value">{stats.tournaments}</div>
                   <div className="stat-label">Tournaments</div>
+                </div>
+              </div>
+              
+              <div style={{gridColumn: '1 / -1', marginTop: '24px'}}>
+                <h3 style={{marginBottom: 16}}>Quick Actions</h3>
+                <div style={{display: 'flex', gap: 12, flexWrap: 'wrap'}}>
+                  <button className="btn btn-primary" onClick={() => navigate('/bookings')}>+ Book for Walk-in</button>
+                  <button className="btn btn-outline" onClick={() => navigate('/scan')}>Scan QR</button>
+                  <button className="btn btn-outline" onClick={() => navigate('/users')}>Manage Users</button>
+                </div>
+              </div>
+
+              <div style={{gridColumn: '1 / -1', marginTop: '24px'}}>
+                <h3 style={{marginBottom: 16}}>Recent Activity</h3>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Customer</th>
+                        <th>Venue</th>
+                        <th>Status</th>
+                        <th>Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentBookings.map(b => (
+                        <tr key={b.id}>
+                          <td>{b.user?.name}</td>
+                          <td>{b.slot?.venue?.name}</td>
+                          <td>
+                            <span className={`badge badge-${b.status === 'CONFIRMED' ? 'primary' : b.status === 'SCANNED' ? 'success' : 'warning'}`}>
+                              {b.status}
+                            </span>
+                          </td>
+                          <td style={{fontWeight: 700}}>${b.finalPrice || b.basePrice}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </>

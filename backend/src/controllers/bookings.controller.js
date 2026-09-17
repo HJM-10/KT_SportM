@@ -98,9 +98,11 @@ const getAllBookings = async (req, res) => {
   }
 };
 
+const bcrypt = require('bcryptjs');
+
 const createBooking = async (req, res) => {
   try {
-    const { slotId, notes, promoCode } = req.body;
+    const { slotId, notes, promoCode, walkInName, walkInPhone } = req.body;
     if (!slotId) return res.status(400).json({ success: false, message: 'slotId is required' });
 
     // Check slot availability
@@ -147,14 +149,38 @@ const createBooking = async (req, res) => {
     finalPrice -= promoDiscount;
     if (finalPrice < 0) finalPrice = 0;
 
+    let targetUserId = req.user.id;
+    let targetBookingStatus = 'PENDING_PAYMENT';
+
+    // Handle Walk-in Users (Admin Only)
+    if (req.user.role === 'ADMIN' && walkInName && walkInPhone) {
+      const email = `guest_${walkInPhone}@smartsportshub.com`;
+      const guestPass = await bcrypt.hash(walkInPhone, 10);
+      
+      const guestUser = await prisma.user.upsert({
+        where: { email },
+        update: { name: walkInName },
+        create: {
+          name: walkInName,
+          email,
+          phone: walkInPhone,
+          password: guestPass,
+          role: 'CUSTOMER'
+        }
+      });
+      targetUserId = guestUser.id;
+      // Cash payments for walk-ins can be considered CONFIRMED immediately if the admin specifies, 
+      // but let's keep it PENDING_PAYMENT and the admin can click "Confirm Payment" in the dashboard.
+    }
+
     const qrToken = uuidv4();
-    const qrPayload = JSON.stringify({ bookingId: null, token: qrToken, userId: req.user.id });
+    const qrPayload = JSON.stringify({ bookingId: null, token: qrToken, userId: targetUserId });
     const qrCode = await QRCode.toDataURL(qrPayload);
 
     const booking = await prisma.$transaction(async (tx) => {
       const b = await tx.booking.create({
         data: {
-          userId: req.user.id,
+          userId: targetUserId,
           slotId: parseInt(slotId),
           qrToken,
           qrCode,
@@ -174,7 +200,7 @@ const createBooking = async (req, res) => {
       
       if (promoCodeId) {
          await tx.promoCode.update({ where: { id: promoCodeId }, data: { usedCount: { increment: 1 } } });
-         await tx.promoCodeUsage.create({ data: { promoCodeId, userId: req.user.id, bookingId: b.id } });
+         await tx.promoCodeUsage.create({ data: { promoCodeId, userId: targetUserId, bookingId: b.id } });
       }
 
       // Create Payment Record (Dummy Stripe)
@@ -183,7 +209,7 @@ const createBooking = async (req, res) => {
       
       const payment = await tx.payment.create({
         data: {
-          userId: req.user.id,
+          userId: targetUserId,
           amount: finalPrice,
           purpose: 'BOOKING',
           stripePaymentIntentId,
@@ -282,4 +308,30 @@ const scanBooking = async (req, res) => {
   }
 };
 
-module.exports = { getSlots, createSlot, getMyBookings, getAllBookings, createBooking, cancelBooking, getBookingQR, scanBooking };
+const confirmBooking = async (req, res) => {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
+    
+    if (booking.status === 'CONFIRMED' || booking.status === 'SCANNED') {
+      return res.status(400).json({ success: false, message: 'Booking is already confirmed or scanned' });
+    }
+
+    const updated = await prisma.booking.update({
+      where: { id: booking.id },
+      data: { status: 'CONFIRMED' },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        slot: { include: { venue: { include: { sport: { select: { name: true } } } } } }
+      }
+    });
+
+    res.json({ success: true, message: 'Booking manually confirmed', data: updated });
+    try { socket.getIO().emit('booking_updated', updated); } catch (e) {}
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { getSlots, createSlot, getMyBookings, getAllBookings, createBooking, cancelBooking, getBookingQR, scanBooking, confirmBooking };

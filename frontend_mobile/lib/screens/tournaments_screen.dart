@@ -42,6 +42,8 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
     }
   }
 
+  final Set<int> _registeredIds = {};
+
   Future<void> _register(int tournamentId) async {
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
@@ -50,14 +52,21 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
       await _apiService.dio.post('/tournaments/$tournamentId/register', data: {
         'teamName': '${user['name']}\'s Team',
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registered successfully!')),
-      );
+      setState(() {
+        _registeredIds.add(tournamentId);
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registered successfully!')),
+        );
+      }
       _fetchTournaments();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text((e as dynamic).response?.data['message'] ?? 'Failed to register')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text((e as dynamic).response?.data['message'] ?? 'Failed to register')),
+        );
+      }
     }
   }
 
@@ -136,12 +145,12 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
                                 ),
                                 if (t['status'] == 'UPCOMING')
                                   ElevatedButton(
-                                    onPressed: () => _register(t['id']),
+                                    onPressed: _registeredIds.contains(t['id']) ? null : () => _register(t['id']),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF6366F1),
+                                      backgroundColor: _registeredIds.contains(t['id']) ? Colors.green : const Color(0xFF6366F1),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                     ),
-                                    child: const Text('Register'),
+                                    child: Text(_registeredIds.contains(t['id']) ? 'Registered' : 'Register'),
                                   ),
                               ],
                             ),

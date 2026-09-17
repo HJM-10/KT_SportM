@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Trophy, Swords, Dumbbell,
-  CalendarCheck, QrCode, LogOut, ScanLine, Settings, Building
+  CalendarCheck, QrCode, LogOut, ScanLine, Settings, Building, Users
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 
@@ -72,6 +72,13 @@ const Sidebar = () => {
             >
               <ScanLine size={18} />
               Scan Booking
+            </NavLink>
+            <NavLink
+              to="/users"
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <Users size={18} />
+              Manage Users
             </NavLink>
           </>
         )}

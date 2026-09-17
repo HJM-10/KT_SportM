@@ -21,6 +21,7 @@ import ComplaintsPage from './pages/ComplaintsPage';
 import PromoCodesPage from './pages/PromoCodesPage';
 import ReportsPage from './pages/ReportsPage';
 import PaymentsPage from './pages/PaymentsPage';
+import UsersPage from './pages/UsersPage';
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
           <Route path="promo" element={<ProtectedRoute adminOnly><PromoCodesPage /></ProtectedRoute>} />
           <Route path="reports" element={<ProtectedRoute adminOnly><ReportsPage /></ProtectedRoute>} />
           <Route path="payments" element={<ProtectedRoute adminOnly><PaymentsPage /></ProtectedRoute>} />
+          <Route path="users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

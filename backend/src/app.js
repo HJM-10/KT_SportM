@@ -19,6 +19,7 @@ const membershipRoutes = require('./routes/membership.routes');
 const notificationsRoutes = require('./routes/notifications.routes');
 const recommendationsRoutes = require('./routes/recommendations.routes');
 const reportsRoutes = require('./routes/reports.routes');
+const usersRoutes = require('./routes/users.routes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api/membership', membershipRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/users', usersRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -94,7 +94,7 @@ const rentEquipment = async (req, res) => {
           totalPrice,
           rentalDate: new Date(rentalDate),
           returnDate: returnDate ? new Date(returnDate) : null,
-          status: 'PENDING'
+          status: 'CONFIRMED'
         }
       });
 
