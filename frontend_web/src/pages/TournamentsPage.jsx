@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Calendar, Users, Trophy } from 'lucide-react';
-import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
 import SportIcon from '../components/SportIcon';
+import PaymentModal from '../components/PaymentModal';
+import useAuthStore from '../store/authStore';
 
 const TournamentsPage = () => {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
+  
+  const [paymentData, setPaymentData] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
+
+  const [adminTournament, setAdminTournament] = useState(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
   const fetchTournaments = async () => {
     try {
@@ -27,11 +34,39 @@ const TournamentsPage = () => {
 
   const handleRegister = async (tournamentId) => {
     try {
-      await api.post(`/tournaments/${tournamentId}/register`, { teamName: `${user.name}'s Team` });
-      toast.success('Successfully registered for tournament!');
-      fetchTournaments();
+      const res = await api.post(`/tournaments/${tournamentId}/register`, { teamName: `${user.name}'s Team` });
+      const { paymentId, clientSecret } = res.data.data;
+      
+      if (paymentId && clientSecret) {
+        setPaymentData({ 
+          paymentId, 
+          paymentIntentId: clientSecret.split('_secret_')[0],
+          amount: tournaments.find(t => t.id === tournamentId).entryFee
+        });
+        setShowPayment(true);
+      } else {
+        toast.success('Successfully registered for tournament!');
+        fetchTournaments();
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to register');
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    fetchTournaments();
+  };
+
+  const handleViewRegistrations = async (id) => {
+    try {
+      const res = await api.get(`/tournaments/${id}`);
+      if (res.data.success) {
+        setAdminTournament(res.data.data);
+        setShowAdminModal(true);
+      }
+    } catch (err) {
+      toast.error('Failed to load tournament details');
     }
   };
 
@@ -76,10 +111,69 @@ const TournamentsPage = () => {
                       Register Now
                     </button>
                   )}
+                  {isAdmin && (
+                    <button className="btn btn-outline btn-sm" onClick={() => handleViewRegistrations(t.id)}>
+                      View Registrations
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {showPayment && paymentData && (
+        <PaymentModal 
+          isOpen={showPayment}
+          onClose={() => setShowPayment(false)}
+          amount={paymentData.amount}
+          paymentId={paymentData.paymentId}
+          paymentIntentId={paymentData.paymentIntentId}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {showAdminModal && adminTournament && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{maxWidth: 700}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 24}}>
+              <h2>Registrations: {adminTournament.name}</h2>
+              <button onClick={() => setShowAdminModal(false)} className="btn btn-sm btn-outline">Close</button>
+            </div>
+            
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Team Name</th>
+                    <th>Captain</th>
+                    <th>Payment Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminTournament.registrations.map(r => (
+                    <tr key={r.id}>
+                      <td style={{fontWeight: 600}}>{r.teamName}</td>
+                      <td>{r.user?.name}</td>
+                      <td>
+                        {r.payment ? (
+                          <span className={`badge badge-${r.payment.status === 'PAID' ? 'success' : 'warning'}`}>
+                            {r.payment.status}
+                          </span>
+                        ) : (
+                          <span className="badge badge-secondary">FREE</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {adminTournament.registrations.length === 0 && (
+                    <tr><td colSpan="3" className="text-center py-8">No registrations yet</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

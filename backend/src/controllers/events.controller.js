@@ -23,7 +23,7 @@ const getEventById = async (req, res) => {
       where: { id: parseInt(req.params.id) },
       include: {
         sport: { select: { name: true, icon: true } },
-        registrations: { include: { user: { select: { id: true, name: true } } } }
+        registrations: { include: { user: { select: { id: true, name: true } }, payment: true } }
       }
     });
     if (!event) return res.status(404).json({ success: false, message: 'Event not found' });

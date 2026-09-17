@@ -2,12 +2,19 @@ import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
+import PaymentModal from '../components/PaymentModal';
 
 const EventsPage = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [paymentData, setPaymentData] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
+
+  const [adminEvent, setAdminEvent] = useState(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
   const fetchEvents = async () => {
     try {
@@ -30,16 +37,37 @@ const EventsPage = () => {
     try {
       const res = await axios.post(`/events/${eventId}/register`);
       if (res.data.success) {
-        if (fee > 0 && res.data.data.clientSecret) {
-          toast.success('Registration successful. Please complete payment.');
-          // In real app, redirect to payment page
+        if (fee > 0 && res.data.data.paymentId) {
+          setPaymentData({
+            paymentId: res.data.data.paymentId,
+            paymentIntentId: res.data.data.clientSecret.split('_secret_')[0],
+            amount: fee
+          });
+          setShowPayment(true);
         } else {
           toast.success('Successfully registered for event!');
+          fetchEvents();
         }
-        fetchEvents();
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed');
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    fetchEvents();
+  };
+
+  const handleViewAttendees = async (id) => {
+    try {
+      const res = await axios.get(`/events/${id}`);
+      if (res.data.success) {
+        setAdminEvent(res.data.data);
+        setShowAdminModal(true);
+      }
+    } catch (err) {
+      toast.error('Failed to load event details');
     }
   };
 
@@ -102,6 +130,14 @@ const EventsPage = () => {
                   {event.status !== 'UPCOMING' ? 'Closed' : 'Register Now'}
                 </button>
               )}
+              {isAdmin && (
+                <button 
+                  onClick={() => handleViewAttendees(event.id)}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg transition-colors border border-white/20"
+                >
+                  View Attendees
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -111,6 +147,60 @@ const EventsPage = () => {
           </div>
         )}
       </div>
+
+      {showPayment && paymentData && (
+        <PaymentModal 
+          isOpen={showPayment}
+          onClose={() => setShowPayment(false)}
+          amount={paymentData.amount}
+          paymentId={paymentData.paymentId}
+          paymentIntentId={paymentData.paymentIntentId}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {showAdminModal && adminEvent && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-xl p-6 w-full max-w-2xl shadow-2xl relative">
+            <div className="flex justify-between mb-6">
+              <h2 className="text-xl font-bold">Attendees: {adminEvent.name}</h2>
+              <button onClick={() => setShowAdminModal(false)} className="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            
+            <div className="overflow-auto max-h-96">
+              <table className="w-full text-left text-sm text-gray-300">
+                <thead className="text-xs uppercase bg-white/5 text-gray-400 border-b border-white/10">
+                  <tr>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Registration Date</th>
+                    <th className="px-4 py-3">Payment</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {adminEvent.registrations.map(r => (
+                    <tr key={r.id}>
+                      <td className="px-4 py-3 font-medium text-white">{r.user?.name}</td>
+                      <td className="px-4 py-3">{new Date(r.createdAt).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        {r.payment ? (
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${r.payment.status === 'PAID' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                            {r.payment.status}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">FREE</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {adminEvent.registrations.length === 0 && (
+                    <tr><td colSpan="3" className="text-center py-8 text-gray-500">No attendees yet</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

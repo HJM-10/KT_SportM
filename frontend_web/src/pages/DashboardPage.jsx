@@ -3,7 +3,7 @@ import { CalendarCheck, Dumbbell, Trophy, Users } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import api from '../api/axios';
 import { socket } from '../services/socket';
-import Joyride, { STATUS } from 'react-joyride';
+import { Joyride, STATUS } from 'react-joyride';
 import { useNavigate } from 'react-router-dom';
 
 const DashboardPage = () => {

@@ -2,12 +2,19 @@ import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import useAuthStore from '../store/authStore';
 import toast from 'react-hot-toast';
+import PaymentModal from '../components/PaymentModal';
 
 const EquipmentPage = () => {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  const [paymentData, setPaymentData] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
+
+  const [rentals, setRentals] = useState([]);
+  const [showAdminModal, setShowAdminModal] = useState(false);
 
   const fetchEquipment = async () => {
     try {
@@ -35,11 +42,37 @@ const EquipmentPage = () => {
         rentalDate: rentDate.toISOString()
       });
       if (res.data.success) {
-        toast.success('Rental request created. Please complete payment.');
-        fetchEquipment();
+        if (price > 0 && res.data.data.paymentId) {
+          setPaymentData({
+            paymentId: res.data.data.paymentId,
+            paymentIntentId: res.data.data.clientSecret.split('_secret_')[0],
+            amount: price
+          });
+          setShowPayment(true);
+        } else {
+          toast.success('Rental request created.');
+          fetchEquipment();
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Rental failed');
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowPayment(false);
+    fetchEquipment();
+  };
+
+  const handleViewRentals = async () => {
+    try {
+      const res = await axios.get('/equipment/rentals/all');
+      if (res.data.success) {
+        setRentals(res.data.data);
+        setShowAdminModal(true);
+      }
+    } catch (err) {
+      toast.error('Failed to load rentals');
     }
   };
 
@@ -52,9 +85,17 @@ const EquipmentPage = () => {
           Equipment Rental
         </h1>
         {isAdmin && (
-          <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-[0_0_15px_rgba(147,51,234,0.5)]">
-            + Add Equipment
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={handleViewRentals}
+              className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors border border-white/20"
+            >
+              View Active Rentals
+            </button>
+            <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-[0_0_15px_rgba(147,51,234,0.5)]">
+              + Add Equipment
+            </button>
+          </div>
         )}
       </div>
 
@@ -96,6 +137,60 @@ const EquipmentPage = () => {
           </div>
         ))}
       </div>
+
+      {showPayment && paymentData && (
+        <PaymentModal 
+          isOpen={showPayment}
+          onClose={() => setShowPayment(false)}
+          amount={paymentData.amount}
+          paymentId={paymentData.paymentId}
+          paymentIntentId={paymentData.paymentIntentId}
+          onSuccess={handlePaymentSuccess}
+        />
+      )}
+
+      {showAdminModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-xl p-6 w-full max-w-4xl shadow-2xl relative">
+            <div className="flex justify-between mb-6">
+              <h2 className="text-xl font-bold">All Equipment Rentals</h2>
+              <button onClick={() => setShowAdminModal(false)} className="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            
+            <div className="overflow-auto max-h-[60vh]">
+              <table className="w-full text-left text-sm text-gray-300">
+                <thead className="text-xs uppercase bg-white/5 text-gray-400 border-b border-white/10 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3">Equipment</th>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Quantity</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {rentals.map(r => (
+                    <tr key={r.id}>
+                      <td className="px-4 py-3 font-medium text-white">{r.equipment?.name}</td>
+                      <td className="px-4 py-3">{r.user?.name}</td>
+                      <td className="px-4 py-3">{r.quantity}</td>
+                      <td className="px-4 py-3">{new Date(r.rentalDate).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${r.status === 'CONFIRMED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                          {r.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {rentals.length === 0 && (
+                    <tr><td colSpan="5" className="text-center py-8 text-gray-500">No active rentals</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -5,12 +5,16 @@ import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../components/ConfirmModal';
 import SportIcon from '../components/SportIcon';
+import PaymentModal from '../components/PaymentModal';
 
 const MyBookingsPage = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [bookingToCancel, setBookingToCancel] = useState(null);
+  
+  const [paymentData, setPaymentData] = useState(null);
+  const [showPayment, setShowPayment] = useState(false);
   
   // Review state
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -117,6 +121,23 @@ const MyBookingsPage = () => {
                 <div style={{fontWeight: 700, fontSize: 18}}>${b.totalPrice}</div>
                 
                 <div className="flex gap-8">
+                  {b.status === 'PENDING_PAYMENT' && b.payment && (
+                    <>
+                      <button className="btn btn-success btn-sm" onClick={() => {
+                        setPaymentData({
+                          paymentId: b.payment.id,
+                          paymentIntentId: b.payment.stripeClientSecret.split('_secret_')[0],
+                          amount: b.totalPrice
+                        });
+                        setShowPayment(true);
+                      }}>
+                        Pay Now
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={() => confirmCancel(b.id)}>
+                        Cancel
+                      </button>
+                    </>
+                  )}
                   {b.status === 'CONFIRMED' && (
                     <>
                       <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/my-bookings/${b.id}/qr`)}>
@@ -197,6 +218,20 @@ const MyBookingsPage = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showPayment && paymentData && (
+        <PaymentModal 
+          isOpen={showPayment}
+          onClose={() => setShowPayment(false)}
+          amount={paymentData.amount}
+          paymentId={paymentData.paymentId}
+          paymentIntentId={paymentData.paymentIntentId}
+          onSuccess={() => {
+            setShowPayment(false);
+            fetchBookings();
+          }}
+        />
       )}
     </div>
   );

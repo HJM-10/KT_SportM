@@ -35,7 +35,7 @@ const getTournamentById = async (req, res) => {
       include: {
         sport: true,
         matches: { orderBy: { scheduledAt: 'asc' } },
-        registrations: { include: { user: { select: { id: true, name: true } } } }
+        registrations: { include: { user: { select: { id: true, name: true } }, payment: true } }
       }
     });
     if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });

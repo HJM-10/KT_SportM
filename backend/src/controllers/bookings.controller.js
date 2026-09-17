@@ -63,7 +63,8 @@ const getMyBookings = async (req, res) => {
           include: {
             venue: { include: { sport: { select: { id: true, name: true, icon: true } } } }
           }
-        }
+        },
+        payment: true
       },
       orderBy: { createdAt: 'desc' }
     });
