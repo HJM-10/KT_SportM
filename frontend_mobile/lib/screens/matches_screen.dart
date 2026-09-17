@@ -65,7 +65,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF06B6D4).withOpacity(0.15),
+                                    color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
@@ -130,3 +130,4 @@ class _MatchesScreenState extends State<MatchesScreen> {
     );
   }
 }
+

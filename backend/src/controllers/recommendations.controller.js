@@ -67,3 +67,4 @@ const getRecommendedSlots = async (req, res) => {
 };
 
 module.exports = { getRecommendedSlots };
+

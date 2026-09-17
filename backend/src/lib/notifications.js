@@ -13,6 +13,7 @@ const createNotification = async (userId, title, body, type = 'INFO', data = nul
     await prisma.notification.create({
       data: { userId, title, body, type, data }
     });
+    await require('./firebase').sendPush(userId, title, body);
   } catch (err) {
     console.error('[Notification] Failed to create notification:', err.message);
   }

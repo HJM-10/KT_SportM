@@ -67,7 +67,7 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF6366F1).withOpacity(0.3),
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                               ),
@@ -116,3 +116,4 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
     );
   }
 }
+

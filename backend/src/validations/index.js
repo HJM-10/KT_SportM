@@ -1,4 +1,7 @@
 const { z } = require('zod');
+const id = z.coerce.number().int().positive();
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Time must be HH:MM');
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value, 'Invalid date');
 
 const authSchemas = {
   register: z.object({
@@ -7,7 +10,7 @@ const authSchemas = {
       email: z.string().email('Invalid email address'),
       password: z.string().min(6, 'Password must be at least 6 characters'),
       phone: z.string().optional(),
-      role: z.enum(['ADMIN', 'CUSTOMER']).optional()
+      role: z.literal('CUSTOMER').optional()
     })
   }),
   login: z.object({
@@ -33,16 +36,19 @@ const authSchemas = {
 const bookingSchemas = {
   createSlot: z.object({
     body: z.object({
-      venueId: z.number().or(z.string().transform(Number)),
-      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
-      startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Start time must be HH:MM'),
-      endTime: z.string().regex(/^\d{2}:\d{2}$/, 'End time must be HH:MM'),
-    })
+      venueId: id,
+      date,
+      startTime: time,
+      endTime: time,
+    }).refine(value => value.endTime > value.startTime, 'End time must be after start time')
   }),
   createBooking: z.object({
     body: z.object({
-      slotId: z.number().or(z.string().transform(Number)),
-      notes: z.string().optional()
+      slotId: id,
+      notes: z.string().max(2000).optional(),
+      promoCode: z.string().max(100).optional(),
+      walkInName: z.string().max(100).optional(),
+      walkInPhone: z.string().max(30).optional()
     })
   })
 };

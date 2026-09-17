@@ -4,7 +4,7 @@ const { authenticate, requireAdmin } = require('../middleware/auth');
 const { getVenueReviews, createReview, deleteReview, getAllReviews } = require('../controllers/reviews.controller');
 
 // Mounted on /api/reviews
-router.get('/', requireAdmin, getAllReviews);
+router.get('/', authenticate, requireAdmin, getAllReviews);
 router.delete('/:id', authenticate, deleteReview);
 
 module.exports = router;

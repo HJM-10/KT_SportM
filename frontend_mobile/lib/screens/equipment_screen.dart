@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/payment_service.dart';
 
 class EquipmentScreen extends StatefulWidget {
   const EquipmentScreen({super.key});
@@ -22,11 +23,13 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   Future<void> _fetchEquipment() async {
     try {
       final res = await _apiService.dio.get('/equipment');
+      if (!mounted) return;
       setState(() {
         _equipment = res.data['data'];
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -39,12 +42,15 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         'rentalDate': rentalDate
       });
       if (res.data['success']) {
+        if (res.data['data']['paymentId'] != null) await PaymentService.checkout(res.data['data']['paymentId']);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Rental requested! Complete payment to confirm.')),
         );
         _fetchEquipment();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to rent equipment')),
       );
@@ -99,3 +105,5 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     );
   }
 }
+
+

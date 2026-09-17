@@ -78,3 +78,4 @@ const updateMatchResult = async (req, res) => {
 };
 
 module.exports = { getMatches, getMatchById, createMatch, updateMatchResult };
+

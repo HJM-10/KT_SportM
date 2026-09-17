@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'slots_screen.dart';
 
 class VenuesScreen extends StatefulWidget {
   final int sportId;
@@ -42,9 +43,7 @@ class _VenuesScreenState extends State<VenuesScreen> {
   }
 
   void _bookSlot(int venueId) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please book slots using the Web Dashboard for full options.')),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => SlotsScreen(venueId: venueId)));
   }
 
   @override
@@ -101,3 +100,4 @@ class _VenuesScreenState extends State<VenuesScreen> {
     );
   }
 }
+

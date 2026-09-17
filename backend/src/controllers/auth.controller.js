@@ -4,7 +4,7 @@ const prisma = require('../lib/prisma');
 
 const register = async (req, res) => {
   try {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Name, email and password are required' });
@@ -18,8 +18,8 @@ const register = async (req, res) => {
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    // Only allow ADMIN role if explicitly passed (for seeding), default CUSTOMER
-    const userRole = role === 'ADMIN' ? 'ADMIN' : 'CUSTOMER';
+    // Public registration always creates a customer.
+    const userRole = 'CUSTOMER';
 
     const user = await prisma.user.create({
       data: { name, email: sanitizedEmail, password: hashed, phone, role: userRole },
@@ -128,3 +128,5 @@ const changePassword = async (req, res) => {
 };
 
 module.exports = { register, login, getMe, updateProfile, changePassword };
+
+

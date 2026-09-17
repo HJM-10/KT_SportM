@@ -78,3 +78,4 @@ const deleteSport = async (req, res) => {
 };
 
 module.exports = { getSports, getSportById, createSport, updateSport, deleteSport };
+

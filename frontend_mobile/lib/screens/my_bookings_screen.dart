@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/payment_service.dart';
 import 'package:intl/intl.dart';
 import 'booking_qr_screen.dart';
 import '../utils/icon_helper.dart';
@@ -47,7 +48,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
+        if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to load bookings')),
         );
       }
@@ -72,11 +74,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
 
     try {
       await _apiService.dio.put('/bookings/$id/cancel');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Booking cancelled successfully')),
       );
       _fetchBookings();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text((e as dynamic).response?.data['message'] ?? 'Failed to cancel')),
       );
@@ -123,8 +127,8 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: isConfirmed ? const Color(0xFF6366F1).withOpacity(0.15) 
-                                            : b['status'] == 'SCANNED' ? Colors.green.withOpacity(0.15) : Colors.red.withOpacity(0.15),
+                                        color: isConfirmed ? const Color(0xFF6366F1).withValues(alpha: 0.15) 
+                                            : b['status'] == 'SCANNED' ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
@@ -176,6 +180,11 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 const Divider(color: Colors.white12),
+                                if (b['status'] == 'PENDING_PAYMENT' && b['payment'] != null)
+                                  TextButton(onPressed: () async {
+                                    try { await PaymentService.checkout(b['payment']['id']); }
+                                    catch (_) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checkout unavailable. Please try again later.'))); }
+                                  }, child: const Text('Pay with Stripe')),
                                 const SizedBox(height: 8),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -215,3 +224,5 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
     );
   }
 }
+
+

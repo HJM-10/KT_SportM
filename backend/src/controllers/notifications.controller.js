@@ -51,7 +51,7 @@ const markAsRead = async (req, res) => {
 const registerFcmToken = async (req, res) => {
   try {
     const { fcmToken } = req.body;
-    if (!fcmToken) return res.status(400).json({ success: false, message: 'FCM Token required' });
+    if (fcmToken !== null && (typeof fcmToken !== 'string' || !fcmToken.length || fcmToken.length > 4096)) return res.status(400).json({ success: false, message: 'Valid FCM token required' });
 
     await prisma.user.update({
       where: { id: req.user.id },
@@ -66,3 +66,4 @@ const registerFcmToken = async (req, res) => {
 };
 
 module.exports = { getMyNotifications, markAsRead, registerFcmToken };
+

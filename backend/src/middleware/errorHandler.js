@@ -1,13 +1,7 @@
 const errorHandler = (err, req, res, next) => {
-  console.error('Global Error:', err);
-
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-  
-  res.status(statusCode).json({
-    success: false,
-    message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'production' ? '🥞' : err.stack,
-  });
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(err.message);
+  res.status(status).json({ success: false, message: status === 500 ? 'Internal server error' : err.message });
 };
-
 module.exports = errorHandler;

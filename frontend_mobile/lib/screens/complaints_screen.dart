@@ -25,11 +25,13 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
   Future<void> _fetchComplaints() async {
     try {
       final res = await _apiService.dio.get('/complaints/my');
+      if (!mounted) return;
       setState(() {
         _complaints = res.data['data'];
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -42,6 +44,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         'title': _titleController.text,
         'description': _descController.text
       });
+      if (!mounted) return;
       if (res.data['success']) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Complaint submitted')));
         _titleController.clear();
@@ -49,6 +52,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
         _fetchComplaints();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to submit')));
     }
   }
@@ -117,3 +121,5 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
     );
   }
 }
+
+

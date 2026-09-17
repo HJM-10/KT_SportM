@@ -19,6 +19,7 @@ const createReview = async (req, res) => {
   try {
     const { id: venueId } = req.params;
     const { rating, comment, bookingId } = req.body;
+    if (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5) return res.status(400).json({ success: false, message: 'Rating must be an integer from 1 to 5' });
     
     if (!rating || !bookingId) {
       return res.status(400).json({ success: false, message: 'Rating and bookingId are required' });
@@ -93,3 +94,4 @@ const getAllReviews = async (req, res) => {
 };
 
 module.exports = { getVenueReviews, createReview, deleteReview, getAllReviews };
+

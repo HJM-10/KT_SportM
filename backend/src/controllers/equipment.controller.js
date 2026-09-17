@@ -65,7 +65,7 @@ const deleteEquipment = async (req, res) => {
   }
 };
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('node:crypto');
 
 const rentEquipment = async (req, res) => {
   try {
@@ -157,3 +157,4 @@ const getAllRentals = async (req, res) => {
 };
 
 module.exports = { getAllEquipment, createEquipment, updateEquipment, deleteEquipment, rentEquipment, getMyRentals, getAllRentals };
+

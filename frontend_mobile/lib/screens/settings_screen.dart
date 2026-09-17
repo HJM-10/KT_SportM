@@ -47,7 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateProfile() async {
     setState(() => _isProfileLoading = true);
     try {
-      final res = await _apiService.dio.put('/auth/me', data: {
+      await _apiService.dio.put('/auth/me', data: {
         'name': _nameController.text,
         'phone': _phoneController.text,
       });
@@ -182,23 +182,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           // APPEARANCE SECTION
           const Text('Appearance', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          RadioListTile<ThemeMode>(
-            title: const Text('Light Mode'),
-            value: ThemeMode.light,
-            groupValue: themeProvider.themeMode,
-            onChanged: (val) => val != null ? themeProvider.toggleTheme(val) : null,
-          ),
-          RadioListTile<ThemeMode>(
-            title: const Text('Dark Mode'),
-            value: ThemeMode.dark,
-            groupValue: themeProvider.themeMode,
-            onChanged: (val) => val != null ? themeProvider.toggleTheme(val) : null,
-          ),
-          RadioListTile<ThemeMode>(
-            title: const Text('System Default'),
-            value: ThemeMode.system,
-            groupValue: themeProvider.themeMode,
-            onChanged: (val) => val != null ? themeProvider.toggleTheme(val) : null,
+          SegmentedButton<ThemeMode>(
+            segments: const [
+              ButtonSegment(value: ThemeMode.light, label: Text('Light')),
+              ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
+              ButtonSegment(value: ThemeMode.system, label: Text('System')),
+            ],
+            selected: {themeProvider.themeMode},
+            onSelectionChanged: (values) => themeProvider.toggleTheme(values.first),
           ),
           
           const SizedBox(height: 32),
@@ -216,3 +207,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+
+

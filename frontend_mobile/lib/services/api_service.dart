@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -8,14 +9,17 @@ class ApiService {
 
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  late IO.Socket _socket;
+  late io.Socket _socket;
   
   // Use 10.0.2.2 for Android emulator to access localhost, or your computer's IP for physical device
-  final String baseUrl = 'http://10.0.2.2:5000/api';
-  final String socketUrl = 'http://10.0.2.2:5000';
+  final String baseUrl = const String.fromEnvironment('API_BASE_URL',
+      defaultValue: kIsWeb ? 'http://localhost:5000/api' : 'http://10.0.2.2:5000/api');
+  String get socketUrl => baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
 
   ApiService._internal() {
     _dio.options.baseUrl = baseUrl;
+    _dio.options.connectTimeout = const Duration(seconds: 15);
+    _dio.options.receiveTimeout = const Duration(seconds: 20);
     _dio.options.headers['Content-Type'] = 'application/json';
 
     _dio.interceptors.add(InterceptorsWrapper(
@@ -38,7 +42,7 @@ class ApiService {
   }
 
   void _initSocket() {
-    _socket = IO.io(socketUrl, IO.OptionBuilder()
+    _socket = io.io(socketUrl, io.OptionBuilder()
       .setTransports(['websocket']) // for Flutter or Web
       .disableAutoConnect()  // disable auto-connection
       .build()
@@ -46,11 +50,13 @@ class ApiService {
     _socket.connect();
     
     _socket.onConnect((_) {
-      print('Socket connected');
+      debugPrint('Socket connected');
     });
   }
 
   Dio get dio => _dio;
   FlutterSecureStorage get storage => _storage;
-  IO.Socket get socket => _socket;
+  io.Socket get socket => _socket;
 }
+
+

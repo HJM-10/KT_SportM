@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin } = require('../middleware/auth');
 const { getRevenueSummary, getBookingAnalytics, getUtilizationReport, getCustomerAnalytics, exportBookingsCsv } = require('../controllers/reports.controller');
 
-router.use(requireAdmin);
+router.use(authenticate, requireAdmin);
 
 router.get('/revenue', getRevenueSummary);
 router.get('/bookings', getBookingAnalytics);

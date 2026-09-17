@@ -1,51 +1,29 @@
 const prisma = require('../lib/prisma');
 const { createNotification } = require('../lib/notifications');
-const { v4: uuidv4 } = require('uuid');
+
 
 const initiatePayment = async (req, res) => {
-  try {
-    const { amount, purpose, bookingId, tournamentRegId, membershipId, eventRegId, rentalId } = req.body;
-    
-    if (!amount || !purpose) {
-      return res.status(400).json({ success: false, message: 'Amount and purpose are required' });
-    }
-
-    // Create a dummy Stripe client secret (in a real app, this would come from Stripe API)
-    const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
-    const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
-
-    const payment = await prisma.payment.create({
-      data: {
-        userId: req.user.id,
-        amount: parseFloat(amount),
-        purpose,
-        stripePaymentIntentId,
-        stripeClientSecret,
-        bookingId: bookingId ? parseInt(bookingId) : null,
-        tournamentRegId: tournamentRegId ? parseInt(tournamentRegId) : null,
-        membershipId: membershipId ? parseInt(membershipId) : null,
-        eventRegId: eventRegId ? parseInt(eventRegId) : null,
-        rentalId: rentalId ? parseInt(rentalId) : null,
-        status: 'PENDING'
-      }
-    });
-
-    res.json({ success: true, data: { payment, clientSecret: stripeClientSecret } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+  return res.status(409).json({ success: false, message: 'Create a booking, registration, rental or membership to obtain a server-priced payment record' });
 };
 
 const confirmPayment = async (req, res) => {
+  if (process.env.ALLOW_CASH_PAYMENTS !== 'true') return res.status(403).json({ success: false, message: 'Payment confirmation requires the signed Stripe webhook' });
   try {
-    const { paymentId, paymentIntentId } = req.body;
+    const { paymentId } = req.body;
+    if (!Number.isSafeInteger(Number(paymentId)) || Number(paymentId) < 1) return res.status(400).json({ success: false, message: 'Valid paymentId required' });
     
     const payment = await prisma.payment.findUnique({
       where: { id: parseInt(paymentId) }
     });
 
     if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
+    if (payment.userId !== req.user.id && req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Not authorized' });
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Payment must be verified by staff until an online payment provider is configured' });
+    if (payment.status !== 'PENDING') return res.status(409).json({ success: false, message: 'Payment is not pending' });
+    if (payment.bookingId) {
+      const booking = await prisma.booking.findUnique({ where: { id: payment.bookingId } });
+      if (!booking || booking.status !== 'PENDING_PAYMENT') return res.status(409).json({ success: false, message: 'Booking is no longer awaiting payment' });
+    }
     if (payment.status === 'PAID') return res.status(400).json({ success: false, message: 'Payment already processed' });
     
     // In a real app, verify with Stripe that paymentIntentId succeeded.
@@ -115,3 +93,5 @@ const getAllPayments = async (req, res) => {
 };
 
 module.exports = { initiatePayment, confirmPayment, getMyPayments, getAllPayments };
+
+

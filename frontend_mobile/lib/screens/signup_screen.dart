@@ -24,6 +24,7 @@ class _SignupScreenState extends State<SignupScreen> {
       _passwordCtrl.text,
       _phoneCtrl.text,
     );
+    if (!mounted) return;
     setState(() => _isLoading = false);
     
     if (!success && mounted) {
@@ -89,3 +90,4 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 }
+

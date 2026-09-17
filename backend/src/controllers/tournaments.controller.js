@@ -35,7 +35,7 @@ const getTournamentById = async (req, res) => {
       include: {
         sport: true,
         matches: { orderBy: { scheduledAt: 'asc' } },
-        registrations: { include: { user: { select: { id: true, name: true } }, payment: true } }
+        registrations: { include: { user: { select: { id: true, name: true } }, payment: { select: { status: true } } } }
       }
     });
     if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });
@@ -95,7 +95,7 @@ const updateTournament = async (req, res) => {
   }
 };
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('node:crypto');
 
 const registerForTournament = async (req, res) => {
   try {
@@ -161,3 +161,5 @@ const registerForTournament = async (req, res) => {
 };
 
 module.exports = { getTournaments, getTournamentById, createTournament, updateTournament, registerForTournament };
+
+

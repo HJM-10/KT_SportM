@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/push_service.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
@@ -17,7 +18,9 @@ import 'screens/membership_screen.dart';
 import 'screens/complaints_screen.dart';
 import 'screens/notifications_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PushService.initialize();
   runApp(
     MultiProvider(
       providers: [
@@ -105,3 +108,4 @@ class _MainLayoutState extends State<MainLayout> {
     );
   }
 }
+

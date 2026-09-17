@@ -53,7 +53,7 @@ class ThemeProvider extends ChangeNotifier {
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 2,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -108,7 +108,7 @@ class ThemeProvider extends ChangeNotifier {
       cardTheme: CardThemeData(
         color: const Color(0xFF16162A),
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.3),
+        shadowColor: Colors.black.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: const BorderSide(color: Color(0xFF2A2A4A), width: 1),
@@ -144,3 +144,4 @@ class ThemeProvider extends ChangeNotifier {
     );
   }
 }
+

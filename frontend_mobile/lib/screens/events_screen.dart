@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/payment_service.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -22,11 +23,13 @@ class _EventsScreenState extends State<EventsScreen> {
   Future<void> _fetchEvents() async {
     try {
       final res = await _apiService.dio.get('/events');
+      if (!mounted) return;
       setState(() {
         _events = res.data['data'];
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -35,12 +38,15 @@ class _EventsScreenState extends State<EventsScreen> {
     try {
       final res = await _apiService.dio.post('/events/$eventId/register');
       if (res.data['success']) {
+        if (res.data['data']['paymentId'] != null) await PaymentService.checkout(res.data['data']['paymentId']);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Registered successfully! Complete payment to confirm.')),
         );
         _fetchEvents();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Registration failed')),
       );
@@ -94,3 +100,5 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 }
+
+

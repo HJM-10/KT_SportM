@@ -152,7 +152,7 @@ model BookingSlot {
   startTime String
   endTime   String
   isBooked  Boolean   @default(false)
-  booking   Booking?
+  bookings  Booking[]
   createdAt DateTime  @default(now())
 }
 
@@ -160,7 +160,7 @@ model Booking {
   id              Int           @id @default(autoincrement())
   userId          Int
   user            User          @relation(fields: [userId], references: [id])
-  slotId          Int           @unique
+  slotId          Int
   slot            BookingSlot   @relation(fields: [slotId], references: [id])
   status          BookingStatus @default(PENDING_PAYMENT)
   qrCode          String?       @db.Text
@@ -175,6 +175,7 @@ model Booking {
   payment         Payment?
   review          Review?
   promoUsage      PromoCodeUsage?
+  @@index([slotId])
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }
@@ -414,3 +415,4 @@ model Notification {
   data      Json?
   createdAt DateTime @default(now())
 }
+

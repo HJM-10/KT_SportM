@@ -110,3 +110,4 @@ const exportBookingsCsv = async (req, res) => {
 };
 
 module.exports = { getRevenueSummary, getBookingAnalytics, getUtilizationReport, getCustomerAnalytics, exportBookingsCsv };
+

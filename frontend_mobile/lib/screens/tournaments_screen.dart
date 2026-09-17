@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/payment_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'package:intl/intl.dart';
@@ -49,9 +50,11 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
     if (user == null) return;
     
     try {
-      await _apiService.dio.post('/tournaments/$tournamentId/register', data: {
+      final response = await _apiService.dio.post('/tournaments/$tournamentId/register', data: {
         'teamName': '${user['name']}\'s Team',
       });
+      if (response.data['data']['paymentId'] != null) await PaymentService.checkout(response.data['data']['paymentId']);
+      if (!mounted) return;
       setState(() {
         _registeredIds.add(tournamentId);
       });
@@ -96,7 +99,7 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1).withOpacity(0.15),
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Row(
@@ -163,3 +166,4 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
     );
   }
 }
+

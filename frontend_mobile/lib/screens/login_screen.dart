@@ -20,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailCtrl.text,
       _passwordCtrl.text,
     );
+    if (!mounted) return;
     setState(() => _isLoading = false);
     
     if (!success && mounted) {
@@ -27,6 +28,13 @@ class _LoginScreenState extends State<LoginScreen> {
         const SnackBar(content: Text('Login failed. Please check credentials.')),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -89,3 +97,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+

@@ -1,6 +1,6 @@
 const prisma = require('../lib/prisma');
 const QRCode = require('qrcode');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('node:crypto');
 const socket = require('../lib/socket');
 
 const getSlots = async (req, res) => {
@@ -20,7 +20,7 @@ const getSlots = async (req, res) => {
     res.json({ success: true, data: slots });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -50,7 +50,7 @@ const createSlot = async (req, res) => {
     res.status(201).json({ success: true, data: slot });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -71,7 +71,7 @@ const getMyBookings = async (req, res) => {
     res.json({ success: true, data: bookings });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -95,7 +95,7 @@ const getAllBookings = async (req, res) => {
     res.json({ success: true, data: bookings });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -125,7 +125,7 @@ const createBooking = async (req, res) => {
 
     // Membership logic
     const membership = await prisma.membership.findUnique({ where: { userId: req.user.id } });
-    if (membership && membership.isActive) {
+    if (membership && membership.isActive && (!membership.endDate || membership.endDate > new Date())) {
       if (membership.tier === 'SILVER') membershipDiscount = basePrice * 0.10;
       if (membership.tier === 'GOLD') membershipDiscount = basePrice * 0.20;
     }
@@ -156,7 +156,7 @@ const createBooking = async (req, res) => {
     // Handle Walk-in Users (Admin Only)
     if (req.user.role === 'ADMIN' && walkInName && walkInPhone) {
       const email = `guest_${walkInPhone}@smartsportshub.com`;
-      const guestPass = await bcrypt.hash(walkInPhone, 10);
+      const guestPass = await bcrypt.hash(uuidv4(), 10);
       
       const guestUser = await prisma.user.upsert({
         where: { email },
@@ -179,6 +179,8 @@ const createBooking = async (req, res) => {
     const qrCode = await QRCode.toDataURL(qrPayload);
 
     const booking = await prisma.$transaction(async (tx) => {
+      const claimed = await tx.bookingSlot.updateMany({ where: { id: parseInt(slotId), isBooked: false }, data: { isBooked: true } });
+      if (!claimed.count) throw Object.assign(new Error('Slot already booked'), { status: 409 });
       const b = await tx.booking.create({
         data: {
           userId: targetUserId,
@@ -191,7 +193,7 @@ const createBooking = async (req, res) => {
           finalPrice,
           promoCodeId,
           notes,
-          status: 'PENDING_PAYMENT'
+          status: finalPrice === 0 ? 'CONFIRMED' : 'PENDING_PAYMENT'
         },
         include: {
           slot: { include: { venue: { include: { sport: { select: { name: true } } } } } }
@@ -216,7 +218,7 @@ const createBooking = async (req, res) => {
           stripePaymentIntentId,
           stripeClientSecret,
           bookingId: b.id,
-          status: 'PENDING'
+          status: finalPrice === 0 ? 'PAID' : 'PENDING'
         }
       });
 
@@ -227,10 +229,10 @@ const createBooking = async (req, res) => {
     });
 
     res.status(201).json({ success: true, data: booking });
-    try { socket.getIO().emit('booking_updated', booking); } catch (e) {}
+    try { socket.getIO().emit('booking_updated', { slotId: booking.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -241,20 +243,22 @@ const cancelBooking = async (req, res) => {
     if (booking.userId !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
-    if (booking.status !== 'CONFIRMED') {
+    if (!['CONFIRMED', 'PENDING_PAYMENT'].includes(booking.status)) {
       return res.status(400).json({ success: false, message: 'Booking cannot be cancelled' });
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.booking.update({ where: { id: booking.id }, data: { status: 'CANCELLED' } });
+      const changed = await tx.booking.updateMany({ where: { id: booking.id, status: booking.status }, data: { status: 'CANCELLED' } });
+      if (!changed.count) throw Object.assign(new Error('Booking changed; refresh and retry'), { status: 409 });
+      await tx.payment.updateMany({ where: { bookingId: booking.id, status: 'PENDING' }, data: { status: 'FAILED' } });
       await tx.bookingSlot.update({ where: { id: booking.slotId }, data: { isBooked: false } });
     });
 
     res.json({ success: true, message: 'Booking cancelled' });
-    try { socket.getIO().emit('booking_updated', booking); } catch (e) {}
+    try { socket.getIO().emit('booking_updated', { slotId: booking.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -271,7 +275,7 @@ const getBookingQR = async (req, res) => {
     res.json({ success: true, data: { qrCode: booking.qrCode, qrToken: booking.qrToken, booking } });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -291,6 +295,7 @@ const scanBooking = async (req, res) => {
     if (!booking) return res.status(404).json({ success: false, message: 'Invalid QR code' });
     if (booking.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Booking is cancelled' });
     if (booking.status === 'SCANNED') return res.status(400).json({ success: false, message: 'Booking already used' });
+    if (booking.status !== 'CONFIRMED') return res.status(400).json({ success: false, message: 'Payment must be confirmed before check-in' });
 
     const updated = await prisma.booking.update({
       where: { id: booking.id },
@@ -302,19 +307,20 @@ const scanBooking = async (req, res) => {
     });
 
     res.json({ success: true, message: 'Booking verified!', data: updated });
-    try { socket.getIO().emit('booking_updated', updated); } catch (e) {}
+    try { socket.getIO().emit('booking_updated', { slotId: updated.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
 const confirmBooking = async (req, res) => {
+  if (process.env.ALLOW_CASH_PAYMENTS !== 'true') return res.status(403).json({ success: false, message: 'Payment confirmation requires Stripe checkout' });
   try {
     const booking = await prisma.booking.findUnique({ where: { id: parseInt(req.params.id) } });
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     
-    if (booking.status === 'CONFIRMED' || booking.status === 'SCANNED') {
+    if (booking.status !== 'PENDING_PAYMENT') {
       return res.status(400).json({ success: false, message: 'Booking is already confirmed or scanned' });
     }
 
@@ -328,11 +334,13 @@ const confirmBooking = async (req, res) => {
     });
 
     res.json({ success: true, message: 'Booking manually confirmed', data: updated });
-    try { socket.getIO().emit('booking_updated', updated); } catch (e) {}
+    try { socket.getIO().emit('booking_updated', { slotId: updated.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
 module.exports = { getSlots, createSlot, getMyBookings, getAllBookings, createBooking, cancelBooking, getBookingQR, scanBooking, confirmBooking };
+
+

@@ -23,7 +23,7 @@ const submitComplaint = async (req, res) => {
     await createNotification(1, 'New Complaint', `A new complaint has been filed: ${title}`, 'COMPLAINT');
 
     res.status(201).json({ success: true, data: complaint });
-    try { socket.getIO().emit('complaint_updated', complaint); } catch (e) {}
+    try { socket.getIO().emit('complaint_updated', {}); } catch (e) {}
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -79,7 +79,7 @@ const updateComplaintStatus = async (req, res) => {
     }
 
     res.json({ success: true, data: updated });
-    try { socket.getIO().emit('complaint_updated', updated); } catch (e) {}
+    try { socket.getIO().emit('complaint_updated', {}); } catch (e) {}
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -87,3 +87,5 @@ const updateComplaintStatus = async (req, res) => {
 };
 
 module.exports = { submitComplaint, getMyComplaints, getAllComplaints, updateComplaintStatus };
+
+

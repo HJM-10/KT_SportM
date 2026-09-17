@@ -23,7 +23,7 @@ const getEventById = async (req, res) => {
       where: { id: parseInt(req.params.id) },
       include: {
         sport: { select: { name: true, icon: true } },
-        registrations: { include: { user: { select: { id: true, name: true } }, payment: true } }
+        registrations: { include: { user: { select: { id: true, name: true } }, payment: { select: { status: true } } } }
       }
     });
     if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
@@ -104,7 +104,7 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('node:crypto');
 
 const registerForEvent = async (req, res) => {
   try {
@@ -160,3 +160,5 @@ const registerForEvent = async (req, res) => {
 };
 
 module.exports = { getAllEvents, getEventById, createEvent, updateEvent, deleteEvent, registerForEvent };
+
+

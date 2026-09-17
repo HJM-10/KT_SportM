@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/push_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -16,6 +17,7 @@ class AuthProvider with ChangeNotifier {
         final res = await _apiService.dio.get('/auth/me');
         _user = res.data['data'];
         _isAuthenticated = true;
+      await PushService.register();
       } catch (e) {
         await logout();
       }
@@ -33,6 +35,7 @@ class AuthProvider with ChangeNotifier {
       await _apiService.storage.write(key: 'ssh_token', value: data['token']);
       _user = data['user'];
       _isAuthenticated = true;
+      await PushService.register();
       notifyListeners();
       return true;
     } catch (e) {
@@ -52,6 +55,7 @@ class AuthProvider with ChangeNotifier {
       await _apiService.storage.write(key: 'ssh_token', value: data['token']);
       _user = data['user'];
       _isAuthenticated = true;
+      await PushService.register();
       notifyListeners();
       return true;
     } catch (e) {
@@ -60,9 +64,12 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await PushService.unregister();
     await _apiService.storage.delete(key: 'ssh_token');
     _user = null;
     _isAuthenticated = false;
     notifyListeners();
   }
 }
+
+

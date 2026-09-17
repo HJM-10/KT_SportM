@@ -77,3 +77,4 @@ const deleteVenue = async (req, res) => {
 };
 
 module.exports = { getVenues, getVenueById, createVenue, updateVenue, deleteVenue };
+

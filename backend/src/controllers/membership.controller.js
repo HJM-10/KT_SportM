@@ -1,5 +1,5 @@
 const prisma = require('../lib/prisma');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID: uuidv4 } = require('node:crypto');
 
 const getMyMembership = async (req, res) => {
   try {
@@ -81,3 +81,4 @@ const purchaseMembership = async (req, res) => {
 };
 
 module.exports = { getMyMembership, getAllMemberships, purchaseMembership };
+

@@ -23,13 +23,17 @@ const usersRoutes = require('./routes/users.routes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+app.disable('x-powered-by');
+app.use(require('helmet')());
+app.use('/api/auth', require('express-rate-limit').rateLimit({ windowMs: 15 * 60 * 1000, limit: 100, standardHeaders: 'draft-7', legacyHeaders: false }));
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://127.0.0.1:5173').split(','),
   credentials: true
 }));
-app.use(express.json());
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), require('./controllers/checkout.controller').webhook);
+app.use(express.json({ limit: '100kb' }));
 app.use(morgan('dev'));
 
 // Health check
@@ -67,23 +71,7 @@ app.use((req, res) => {
 });
 
 // Error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, message: 'Internal server error' });
-});
+app.use(errorHandler);
 
-const http = require('http');
-const socket = require('./lib/socket');
+module.exports = app;
 
-const PORT = process.env.PORT || 5000;
-const server = http.createServer(app);
-
-// Initialize Socket.io
-socket.init(server);
-
-server.listen(PORT, () => {
-  console.log(`\n🚀 Smart Sports Hub API running on http://localhost:${PORT}`);
-  console.log(`   Health: http://localhost:${PORT}/api/health\n`);
-});
-
-module.exports = { app, server };

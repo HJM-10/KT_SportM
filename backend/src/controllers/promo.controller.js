@@ -84,3 +84,4 @@ const updatePromo = async (req, res) => {
 };
 
 module.exports = { validatePromo, getAllPromos, createPromo, updatePromo };
+

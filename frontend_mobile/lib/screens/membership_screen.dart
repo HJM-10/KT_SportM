@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/payment_service.dart';
 
 class MembershipScreen extends StatefulWidget {
   const MembershipScreen({super.key});
@@ -22,11 +23,13 @@ class _MembershipScreenState extends State<MembershipScreen> {
   Future<void> _fetchMembership() async {
     try {
       final res = await _apiService.dio.get('/membership/my');
+      if (!mounted) return;
       setState(() {
         _membership = res.data['data'];
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
@@ -35,10 +38,13 @@ class _MembershipScreenState extends State<MembershipScreen> {
     try {
       final res = await _apiService.dio.post('/membership/purchase', data: {'tier': tier});
       if (res.data['success']) {
+        if (res.data['data']['paymentId'] != null) await PaymentService.checkout(res.data['data']['paymentId']);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Membership request submitted! Complete payment to activate.')));
         _fetchMembership();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to purchase')));
     }
   }
@@ -112,3 +118,5 @@ class _MembershipScreenState extends State<MembershipScreen> {
     );
   }
 }
+
+
