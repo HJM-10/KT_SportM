@@ -15,6 +15,13 @@ const EquipmentPage = () => {
 
   const [rentals, setRentals] = useState([]);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [sports, setSports] = useState([]);
+
+  // Create Equipment state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '', description: '', sportId: '', pricePerSlot: 0, quantity: 1, imageUrl: ''
+  });
 
   const fetchEquipment = async () => {
     try {
@@ -29,9 +36,19 @@ const EquipmentPage = () => {
     }
   };
 
+  const fetchSports = async () => {
+    try {
+      const res = await axios.get('/sports');
+      setSports(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchEquipment();
-  }, []);
+    if (isAdmin) fetchSports();
+  }, [isAdmin]);
 
   const handleRent = async (equipmentId, price) => {
     const rentDate = new Date();
@@ -76,6 +93,18 @@ const EquipmentPage = () => {
     }
   };
 
+  const handleCreateEquipment = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('/equipment', formData);
+      toast.success('Equipment created successfully');
+      setShowCreateModal(false);
+      fetchEquipment();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create equipment');
+    }
+  };
+
   if (loading) return <div className="p-6 text-white text-center">Loading equipment...</div>;
 
   return (
@@ -88,11 +117,14 @@ const EquipmentPage = () => {
           <div className="flex gap-4">
             <button 
               onClick={handleViewRentals}
-              className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors border border-white/20"
+              className="btn btn-secondary"
             >
               View Active Rentals
             </button>
-            <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-[0_0_15px_rgba(147,51,234,0.5)]">
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="btn btn-primary"
+            >
               + Add Equipment
             </button>
           </div>
@@ -101,7 +133,7 @@ const EquipmentPage = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {equipment.map(item => (
-          <div key={item.id} className="glass-panel p-4 flex flex-col hover:-translate-y-1 transition-all duration-300">
+          <div key={item.id} className="card flex-col">
             <div className="h-40 bg-white/5 rounded-lg mb-4 flex items-center justify-center overflow-hidden border border-white/10">
               {item.imageUrl ? (
                 <img src={item.imageUrl} alt={item.name} className="object-cover w-full h-full" />
@@ -127,7 +159,7 @@ const EquipmentPage = () => {
               {!isAdmin && (
                 <button 
                   onClick={() => handleRent(item.id, item.pricePerSlot)}
-                  className="w-full bg-white/10 hover:bg-purple-600 text-white py-2 rounded-lg transition-colors border border-white/20 hover:border-purple-500"
+                  className="btn btn-primary btn-full mt-4"
                   disabled={!item.isActive || item.quantity < 1}
                 >
                   {!item.isActive || item.quantity < 1 ? 'Unavailable' : 'Rent Now'}
@@ -188,6 +220,52 @@ const EquipmentPage = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-xl p-6 w-full max-w-md shadow-2xl relative">
+            <div className="flex justify-between mb-6">
+              <h2 className="text-xl font-bold">Add New Equipment</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <form onSubmit={handleCreateEquipment} className="space-y-4">
+              <div className="form-group">
+                <label className="form-label">Equipment Name</label>
+                <input type="text" required className="form-input w-full" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Sport</label>
+                <select required className="form-select w-full" value={formData.sportId} onChange={e => setFormData({...formData, sportId: e.target.value})}>
+                  <option value="" className="text-black">Select Sport</option>
+                  {sports.map(s => <option key={s.id} value={s.id} className="text-black">{s.name}</option>)}
+                </select>
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Price Per Slot ($)</label>
+                  <input type="number" required min="0" step="0.01" className="form-input w-full" value={formData.pricePerSlot} onChange={e => setFormData({...formData, pricePerSlot: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Quantity</label>
+                  <input type="number" required min="1" className="form-input w-full" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Image URL</label>
+                <input type="url" className="form-input w-full" value={formData.imageUrl} onChange={e => setFormData({...formData, imageUrl: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea className="form-input w-full" rows="2" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Add Equipment</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

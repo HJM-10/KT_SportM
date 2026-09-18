@@ -4,6 +4,7 @@ import { Calendar, Users, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import SportIcon from '../components/SportIcon';
 import PaymentModal from '../components/PaymentModal';
+import ConfirmModal from '../components/ConfirmModal';
 import useAuthStore from '../store/authStore';
 
 const TournamentsPage = () => {
@@ -17,6 +18,18 @@ const TournamentsPage = () => {
 
   const [adminTournament, setAdminTournament] = useState(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showAddRegForm, setShowAddRegForm] = useState(false);
+  const [newRegData, setNewRegData] = useState({ teamName: '', userId: '', paymentStatus: 'PAID' });
+  const [users, setUsers] = useState([]);
+
+  const [sports, setSports] = useState([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '', sportId: '', format: 'KNOCKOUT', startDate: '', endDate: '', maxTeams: 8, entryFee: 0, description: ''
+  });
+  const [editingId, setEditingId] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false, id: null });
+  const today = new Date().toISOString().split('T')[0];
 
   const fetchTournaments = async () => {
     try {
@@ -30,7 +43,31 @@ const TournamentsPage = () => {
     }
   };
 
-  useEffect(() => { fetchTournaments(); }, []);
+  const fetchSports = async () => {
+    try {
+      const res = await api.get('/sports');
+      setSports(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await api.get('/users');
+      setUsers(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => { 
+    fetchTournaments(); 
+    if (isAdmin) {
+      fetchSports();
+      fetchUsers();
+    }
+  }, [isAdmin]);
 
   const handleRegister = async (tournamentId) => {
     try {
@@ -63,6 +100,8 @@ const TournamentsPage = () => {
       const res = await api.get(`/tournaments/${id}`);
       if (res.data.success) {
         setAdminTournament(res.data.data);
+        setShowAddRegForm(false);
+        setNewRegData({ teamName: '', userId: '', paymentStatus: 'PAID' });
         setShowAdminModal(true);
       }
     } catch (err) {
@@ -70,11 +109,88 @@ const TournamentsPage = () => {
     }
   };
 
+  const handleManualRegister = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/tournaments/${adminTournament.id}/manual-register`, newRegData);
+      toast.success('Registration added successfully');
+      setShowAddRegForm(false);
+      handleViewRegistrations(adminTournament.id); // refresh
+      fetchTournaments();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add registration');
+    }
+  };
+
+  const handleCreateTournament = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingId) {
+        await api.put(`/tournaments/${editingId}`, formData);
+        toast.success('Tournament updated successfully');
+      } else {
+        await api.post('/tournaments', formData);
+        toast.success('Tournament created successfully');
+      }
+      setShowCreateModal(false);
+      setEditingId(null);
+      fetchTournaments();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save tournament');
+    }
+  };
+
+  const handleEdit = (t) => {
+    setFormData({
+      name: t.name,
+      sportId: t.sportId,
+      format: t.format,
+      startDate: t.startDate ? new Date(t.startDate).toISOString().split('T')[0] : '',
+      endDate: t.endDate ? new Date(t.endDate).toISOString().split('T')[0] : '',
+      maxTeams: t.maxTeams,
+      entryFee: t.entryFee,
+      description: t.description || ''
+    });
+    setEditingId(t.id);
+    setShowCreateModal(true);
+  };
+
+  const handleOpenCreate = () => {
+    setFormData({
+      name: '', sportId: '', format: 'KNOCKOUT', startDate: '', endDate: '', maxTeams: 8, entryFee: 0, description: ''
+    });
+    setEditingId(null);
+    setShowCreateModal(true);
+  };
+
+  const handleDelete = (id) => {
+    setDeleteConfirm({ isOpen: true, id });
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await api.delete(`/tournaments/${deleteConfirm.id}`);
+      toast.success('Tournament deleted successfully');
+      setDeleteConfirm({ isOpen: false, id: null });
+      fetchTournaments();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete tournament');
+      setDeleteConfirm({ isOpen: false, id: null });
+    }
+  };
+
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Tournaments</h1>
-        <div className="page-subtitle">Join or manage upcoming events and tournaments</div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 className="page-title">Tournaments</h1>
+          <div className="page-subtitle">Join or manage upcoming events and tournaments</div>
+        </div>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={handleOpenCreate}>
+            + Create Tournament
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -112,9 +228,17 @@ const TournamentsPage = () => {
                     </button>
                   )}
                   {isAdmin && (
-                    <button className="btn btn-outline btn-sm" onClick={() => handleViewRegistrations(t.id)}>
-                      View Registrations
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="btn btn-outline btn-sm" onClick={() => handleEdit(t)}>
+                        Edit
+                      </button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(t.id)}>
+                        Delete
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => handleViewRegistrations(t.id)}>
+                        View Registrations
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -135,13 +259,48 @@ const TournamentsPage = () => {
       )}
 
       {showAdminModal && adminTournament && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{maxWidth: 700}}>
-            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 24}}>
-              <h2>Registrations: {adminTournament.name}</h2>
-              <button onClick={() => setShowAdminModal(false)} className="btn btn-sm btn-outline">Close</button>
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '700px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Registrations: {adminTournament.name}</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {!showAddRegForm && (
+                  <button className="btn btn-primary btn-sm" onClick={() => setShowAddRegForm(true)}>+ Add</button>
+                )}
+                <button className="modal-close" onClick={() => setShowAdminModal(false)}>×</button>
+              </div>
             </div>
             
+            {showAddRegForm && (
+              <form onSubmit={handleManualRegister} style={{ padding: '16px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', marginBottom: '16px', border: '1px solid var(--border-focus)' }}>
+                <h4 style={{ marginBottom: '12px', color: 'var(--primary-light)' }}>Manual Registration</h4>
+                <div className="grid-3" style={{ gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label">Team Name</label>
+                    <input type="text" required className="form-input" placeholder="Enter team name" value={newRegData.teamName} onChange={e => setNewRegData({...newRegData, teamName: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Captain (User)</label>
+                    <select className="form-input" value={newRegData.userId} onChange={e => setNewRegData({...newRegData, userId: e.target.value})}>
+                      <option value="">-- Admin (Self) --</option>
+                      {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Payment Status</label>
+                    <select className="form-input" value={newRegData.paymentStatus} onChange={e => setNewRegData({...newRegData, paymentStatus: e.target.value})}>
+                      <option value="PAID">PAID</option>
+                      <option value="FREE">FREE</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowAddRegForm(false)}>Cancel</button>
+                  <button type="submit" className="btn btn-primary btn-sm">Register Team</button>
+                </div>
+              </form>
+            )}
+
             <div className="table-wrapper">
               <table>
                 <thead>
@@ -176,6 +335,77 @@ const TournamentsPage = () => {
           </div>
         </div>
       )}
+
+      {showCreateModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">{editingId ? 'Edit Tournament' : 'Create Tournament'}</h2>
+              <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
+            </div>
+            <form className="modal-form" onSubmit={handleCreateTournament}>
+              <div className="form-group">
+                <label className="form-label">Tournament Name</label>
+                <input type="text" required className="form-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Sport</label>
+                  <select required className="form-input" value={formData.sportId} onChange={e => setFormData({...formData, sportId: e.target.value})}>
+                    <option value="">Select Sport</option>
+                    {sports.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Format</label>
+                  <select className="form-input" value={formData.format} onChange={e => setFormData({...formData, format: e.target.value})}>
+                    <option value="KNOCKOUT">Knockout</option>
+                    <option value="LEAGUE">League</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Start Date</label>
+                  <input type="date" required min={today} className="form-input" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">End Date</label>
+                  <input type="date" min={formData.startDate || today} className="form-input" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Entry Fee ($)</label>
+                  <input type="number" required min="0" step="0.01" className="form-input" value={formData.entryFee} onChange={e => setFormData({...formData, entryFee: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Max Teams</label>
+                  <input type="number" required min="2" className="form-input" value={formData.maxTeams} onChange={e => setFormData({...formData, maxTeams: e.target.value})} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea className="form-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">{editingId ? 'Update' : 'Create'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      
+      <ConfirmModal
+        isOpen={deleteConfirm.isOpen}
+        title="Delete Tournament"
+        message="Are you sure you want to delete this tournament? This action cannot be undone."
+        confirmText="Delete"
+        isDanger={true}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm({ isOpen: false, id: null })}
+      />
     </div>
   );
 };

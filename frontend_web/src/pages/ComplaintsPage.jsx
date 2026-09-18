@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import toast from 'react-hot-toast';
+import useAuthStore from '../store/authStore';
+import PromptModal from '../components/PromptModal';
 
 const ComplaintsPage = () => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [promptData, setPromptData] = useState({ isOpen: false, id: null, status: null, currentNote: '' });
 
   const fetchComplaints = async () => {
     try {
-      const res = await axios.get('/complaints/my');
+      const endpoint = isAdmin ? '/complaints' : '/complaints/my';
+      const res = await axios.get(endpoint);
       if (res.data.success) {
         setComplaints(res.data.data);
       }
@@ -40,6 +46,22 @@ const ComplaintsPage = () => {
     }
   };
 
+  const handleUpdateStatus = (id, status, currentNote) => {
+    setPromptData({ isOpen: true, id, status, currentNote });
+  };
+
+  const confirmUpdateStatus = async (adminNote) => {
+    try {
+      await axios.patch(`/complaints/${promptData.id}`, { status: promptData.status, adminNote });
+      toast.success('Complaint updated');
+      setPromptData({ isOpen: false, id: null, status: null, currentNote: '' });
+      fetchComplaints();
+    } catch (err) {
+      toast.error('Failed to update complaint');
+      setPromptData({ isOpen: false, id: null, status: null, currentNote: '' });
+    }
+  };
+
   if (loading) return <div className="p-6 text-white">Loading...</div>;
 
   return (
@@ -48,51 +70,69 @@ const ComplaintsPage = () => {
         Help & Support
       </h1>
 
-      <div className="glass-panel p-6 mb-8 border-red-500/30">
+      <div className="card mb-8 border-t-4 border-t-red-500">
         <h2 className="text-xl font-semibold mb-4 text-white">File a Complaint</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Subject</label>
+        <form onSubmit={handleSubmit} className="flex-col gap-16">
+          <div className="form-group">
+            <label className="form-label">Subject</label>
             <input 
               type="text" 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded px-4 py-2 text-white focus:outline-none focus:border-red-500"
+              className="form-input w-full"
               required
               placeholder="Brief subject of your issue"
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Description</label>
+          <div className="form-group">
+            <label className="form-label">Description</label>
             <textarea 
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded px-4 py-2 text-white focus:outline-none focus:border-red-500 h-32 resize-none"
+              className="form-input w-full h-32 resize-none"
               required
               placeholder="Please provide details about your issue..."
             />
           </div>
-          <button type="submit" className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg transition-colors shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+          <button type="submit" className="btn btn-primary mt-2 shadow-[0_0_15px_rgba(220,38,38,0.3)]">
             Submit Complaint
           </button>
         </form>
       </div>
 
-      <h2 className="text-xl font-semibold mb-4 text-white">My Previous Complaints</h2>
+      <h2 className="text-xl font-semibold mb-4 text-white">
+        {isAdmin ? 'All Complaints' : 'My Previous Complaints'}
+      </h2>
       <div className="space-y-4">
         {complaints.map(c => (
-          <div key={c.id} className="glass-panel p-5 border-l-4 border-l-orange-500">
+          <div key={c.id} className="card border-l-4 border-l-orange-500">
             <div className="flex justify-between items-start mb-2">
-              <h3 className="text-lg font-bold text-white">{c.title}</h3>
-              <span className={`px-2 py-1 rounded text-xs font-bold ${
-                c.status === 'OPEN' ? 'bg-orange-500/20 text-orange-400' :
-                c.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-400' :
-                'bg-blue-500/20 text-blue-400'
-              }`}>
-                {c.status}
-              </span>
+              <div>
+                <h3 className="text-lg font-bold text-white">{c.title}</h3>
+                {isAdmin && <span className="text-xs text-gray-400">By: {c.user?.name} ({c.user?.email})</span>}
+              </div>
+              
+              {isAdmin ? (
+                <select 
+                  className="form-select"
+                  value={c.status}
+                  onChange={(e) => handleUpdateStatus(c.id, e.target.value, c.adminNote)}
+                >
+                  <option value="OPEN" className="text-black">OPEN</option>
+                  <option value="IN_PROGRESS" className="text-black">IN PROGRESS</option>
+                  <option value="RESOLVED" className="text-black">RESOLVED</option>
+                </select>
+              ) : (
+                <span className={`px-2 py-1 rounded text-xs font-bold ${
+                  c.status === 'OPEN' ? 'bg-orange-500/20 text-orange-400' :
+                  c.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-400' :
+                  'bg-blue-500/20 text-blue-400'
+                }`}>
+                  {c.status}
+                </span>
+              )}
             </div>
-            <p className="text-gray-300 text-sm mb-3">{c.description}</p>
+            <p className="text-gray-300 text-sm mb-3 mt-2">{c.description}</p>
             <div className="text-xs text-gray-500">
               Submitted on: {new Date(c.createdAt).toLocaleDateString()}
             </div>
@@ -110,6 +150,15 @@ const ComplaintsPage = () => {
           </div>
         )}
       </div>
+
+      <PromptModal
+        isOpen={promptData.isOpen}
+        title="Update Complaint"
+        message="Enter admin note (optional):"
+        defaultValue={promptData.currentNote || ''}
+        onConfirm={confirmUpdateStatus}
+        onCancel={() => setPromptData({ isOpen: false, id: null, status: null, currentNote: '' })}
+      />
     </div>
   );
 };

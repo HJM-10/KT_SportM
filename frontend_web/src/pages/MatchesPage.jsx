@@ -13,6 +13,14 @@ const MatchesPage = () => {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [scores, setScores] = useState({ team1: '', team2: '' });
 
+  // Add Match State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [tournaments, setTournaments] = useState([]);
+  const [selectedTournamentData, setSelectedTournamentData] = useState(null);
+  const [matchData, setMatchData] = useState({
+    tournamentId: '', team1: '', team2: '', scheduledAt: '', venue: '', round: ''
+  });
+
   const fetchMatches = async () => {
     try {
       setLoading(true);
@@ -24,8 +32,48 @@ const MatchesPage = () => {
       setLoading(false);
     }
   };
+  const fetchTournaments = async () => {
+    try {
+      const res = await api.get('/tournaments');
+      setTournaments(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-  useEffect(() => { fetchMatches(); }, []);
+  useEffect(() => { 
+    fetchMatches(); 
+    if (isAdmin) fetchTournaments();
+  }, [isAdmin]);
+
+  const handleTournamentSelect = async (e) => {
+    const tId = e.target.value;
+    setMatchData({ ...matchData, tournamentId: tId, team1: '', team2: '' });
+    if (!tId) return setSelectedTournamentData(null);
+    try {
+      const res = await api.get(`/tournaments/${tId}`);
+      setSelectedTournamentData(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCreateMatch = async (e) => {
+    e.preventDefault();
+    
+    if (matchData.team1.trim().toLowerCase() === matchData.team2.trim().toLowerCase()) {
+      return toast.error('Team 1 and Team 2 cannot be the same team');
+    }
+
+    try {
+      await api.post('/matches', matchData);
+      toast.success('Match scheduled successfully');
+      setShowCreateModal(false);
+      fetchMatches();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create match');
+    }
+  };
 
   const openScoreModal = (match) => {
     setSelectedMatch(match);
@@ -58,9 +106,16 @@ const MatchesPage = () => {
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Matches</h1>
-        <div className="page-subtitle">Tournament fixtures and results</div>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 className="page-title">Matches</h1>
+          <div className="page-subtitle">Tournament fixtures and results</div>
+        </div>
+        {isAdmin && (
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            + Add Match
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -120,6 +175,63 @@ const MatchesPage = () => {
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setScoreModalOpen(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary">Save Result</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Schedule Match</h2>
+              <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
+            </div>
+            <form className="modal-form" onSubmit={handleCreateMatch}>
+              <div className="form-group">
+                <label className="form-label">Tournament</label>
+                <select required className="form-input" value={matchData.tournamentId} onChange={handleTournamentSelect}>
+                  <option value="">Select Tournament</option>
+                  {tournaments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+
+              {selectedTournamentData && (
+                <datalist id="tournament-teams">
+                  {selectedTournamentData.registrations.map(r => (
+                    <option key={r.id} value={r.teamName} />
+                  ))}
+                </datalist>
+              )}
+
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Team 1</label>
+                  <input type="text" required list="tournament-teams" className="form-input" placeholder="Select or type team" value={matchData.team1} onChange={e => setMatchData({...matchData, team1: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Team 2</label>
+                  <input type="text" required list="tournament-teams" className="form-input" placeholder="Select or type team" value={matchData.team2} onChange={e => setMatchData({...matchData, team2: e.target.value})} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Scheduled Date & Time</label>
+                <input type="datetime-local" required className="form-input" value={matchData.scheduledAt} onChange={e => setMatchData({...matchData, scheduledAt: e.target.value})} />
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Venue (Optional)</label>
+                  <input type="text" className="form-input" value={matchData.venue} onChange={e => setMatchData({...matchData, venue: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Round (Optional)</label>
+                  <input type="text" className="form-input" placeholder="e.g. Quarter Finals" value={matchData.round} onChange={e => setMatchData({...matchData, round: e.target.value})} />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Schedule</button>
               </div>
             </form>
           </div>

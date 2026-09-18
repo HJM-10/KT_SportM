@@ -56,10 +56,24 @@ body {
   overflow-x: hidden;
 }
 
-a { color: inherit; text-decoration: none; }
-button { cursor: pointer; font-family: inherit; }
-input, textarea, select { font-family: inherit; }
+a { color: inherit; text-decoration: none; transition: all 0.3s ease; }
+button { cursor: pointer; font-family: inherit; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+input, textarea, select { font-family: inherit; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 img { max-width: 100%; }
+
+/* Global Input & Button Animations */
+input:focus, textarea:focus, select:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.3) !important;
+  border-color: rgba(99, 102, 241, 0.8) !important;
+  outline: none;
+}
+button:hover {
+  transform: translateY(-2px);
+}
+button:active {
+  transform: translateY(1px);
+}
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
@@ -84,6 +98,8 @@ img { max-width: 100%; }
 .btn-danger { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
 .btn-danger:hover { background: rgba(239,68,68,0.25); }
 .btn-success { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid rgba(16,185,129,0.3); }
+.btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+.btn-outline:hover { background: rgba(255,255,255,0.05); border-color: var(--text-muted); }
 .btn-success:hover { background: rgba(16,185,129,0.25); }
 .btn-sm { padding: 6px 14px; font-size: 12px; }
 .btn-lg { padding: 14px 28px; font-size: 16px; }
@@ -108,18 +124,31 @@ img { max-width: 100%; }
   background: var(--bg-input); border: 1px solid var(--border);
   border-radius: var(--radius-sm); padding: 10px 14px;
   color: var(--text); font-size: 14px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  outline: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none; color-scheme: dark;
 }
-.form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.form-input:focus { border-color: var(--primary); box-shadow: 0 0 20px rgba(99,102,241,0.3); transform: translateY(-1px); }
 .form-input::placeholder { color: var(--text-dim); }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.7;
+  cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
 .form-select {
   background: var(--bg-input); border: 1px solid var(--border);
   border-radius: var(--radius-sm); padding: 10px 14px;
   color: var(--text); font-size: 14px; outline: none;
   appearance: none; cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.form-select:focus { border-color: var(--primary); }
+.form-select:focus { border-color: var(--primary); box-shadow: 0 0 20px rgba(99,102,241,0.3); transform: translateY(-1px); }
 
 /* ── Badges ── */
 .badge {
@@ -195,6 +224,27 @@ img { max-width: 100%; }
   transition: all 0.2s;
 }
 .sidebar-logout-btn:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
+
+/* ── List Items ── */
+.list-item {
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(255, 255, 255, 0.05); padding: 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); transition: all 0.2s; margin-bottom: 12px;
+}
+.list-item:hover { border-color: rgba(99,102,241,0.3); transform: translateY(-1px); }
+.list-item-left { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(99,102,241,0.2); color: var(--primary-light);
+  display: flex; align-items: center; justify-content: center; font-weight: bold;
+}
+.revenue-item {
+  display: flex; flex-direction: column; gap: 8px;
+  background: rgba(255, 255, 255, 0.05); padding: 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); transition: all 0.2s; margin-bottom: 12px;
+}
+.revenue-item:hover { border-color: rgba(16,185,129,0.3); transform: translateY(-1px); }
+.revenue-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 
 /* ── Page Header ── */
 .page-header { margin-bottom: 28px; }
@@ -314,6 +364,58 @@ tr:hover td { background: var(--bg-card-hover); }
 }
 .scan-result.success { border-color: var(--success); background: rgba(16,185,129,0.05); }
 .scan-result.error   { border-color: var(--danger);  background: rgba(239,68,68,0.05);  }
+
+/* QR Code Scanner (html5-qrcode) Overrides */
+#qr-reader {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-card);
+  padding: 10px;
+}
+#qr-reader button {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark)) !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 10px 20px !important;
+  border-radius: var(--radius-sm) !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  margin: 5px !important;
+  box-shadow: 0 4px 15px rgba(99,102,241,0.3) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+#qr-reader button:hover {
+  transform: translateY(-2px) scale(1.05) !important;
+  box-shadow: 0 8px 25px rgba(99,102,241,0.5) !important;
+}
+#qr-reader button:active {
+  transform: translateY(1px) scale(0.98) !important;
+}
+#qr-reader a {
+  color: var(--primary-light) !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+#qr-reader a:hover {
+  color: var(--primary) !important;
+  text-shadow: 0 0 10px rgba(99,102,241,0.5) !important;
+}
+#qr-reader select {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  padding: 8px 12px !important;
+  border-radius: var(--radius-sm) !important;
+  outline: none !important;
+  margin: 5px !important;
+  transition: all 0.3s ease !important;
+}
+#qr-reader select:focus {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 15px rgba(99,102,241,0.3) !important;
+}
 
 /* ── Match Card ── */
 .match-card {

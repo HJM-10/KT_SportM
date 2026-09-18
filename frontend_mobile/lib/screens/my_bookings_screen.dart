@@ -4,6 +4,7 @@ import '../services/payment_service.dart';
 import 'package:intl/intl.dart';
 import 'booking_qr_screen.dart';
 import '../utils/icon_helper.dart';
+import '../utils/ui_utils.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
@@ -57,17 +58,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
   }
 
   Future<void> _cancelBooking(int id) async {
-    final confirm = await showDialog<bool>(
+    final confirm = await UiUtils.showAnimatedConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF16162A),
-        title: const Text('Cancel Booking?'),
-        content: const Text('Are you sure you want to cancel this booking?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('No')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Yes', style: TextStyle(color: Colors.red))),
-        ],
-      ),
+      title: 'Cancel Booking?',
+      message: 'Are you sure you want to cancel this booking?',
+      confirmText: 'Yes, Cancel',
+      cancelText: 'No',
+      isDanger: true,
     );
 
     if (confirm != true) return;

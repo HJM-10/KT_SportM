@@ -15,6 +15,13 @@ const EventsPage = () => {
 
   const [adminEvent, setAdminEvent] = useState(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [sports, setSports] = useState([]);
+
+  // Create Event state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '', description: '', sportId: '', startDate: '', endDate: '', type: 'TRAINING_CAMP', fee: 0, maxParticipants: 50, venue: ''
+  });
 
   const fetchEvents = async () => {
     try {
@@ -29,9 +36,19 @@ const EventsPage = () => {
     }
   };
 
+  const fetchSports = async () => {
+    try {
+      const res = await axios.get('/sports');
+      setSports(res.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchEvents();
-  }, []);
+    if (isAdmin) fetchSports();
+  }, [isAdmin]);
 
   const handleRegister = async (eventId, fee) => {
     try {
@@ -71,6 +88,18 @@ const EventsPage = () => {
     }
   };
 
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('/events', formData);
+      toast.success('Event created successfully');
+      setShowCreateModal(false);
+      fetchEvents();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create event');
+    }
+  };
+
   if (loading) return <div className="p-6 text-white text-center">Loading events...</div>;
 
   return (
@@ -80,7 +109,10 @@ const EventsPage = () => {
           Events & Training Camps
         </h1>
         {isAdmin && (
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-[0_0_15px_rgba(37,99,235,0.5)]">
+          <button 
+            className="btn btn-primary"
+            onClick={() => setShowCreateModal(true)}
+          >
             + Create Event
           </button>
         )}
@@ -88,7 +120,7 @@ const EventsPage = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {events.map(event => (
-          <div key={event.id} className="glass-panel p-5 flex flex-col hover:border-blue-500/50 transition-all duration-300">
+          <div key={event.id} className="card flex-col">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-xl font-bold text-white mb-1">{event.name}</h3>
@@ -120,11 +152,11 @@ const EventsPage = () => {
               </div>
             </div>
 
-            <div className="mt-auto">
+            <div className="mt-auto pt-4">
               {!isAdmin && (
                 <button 
                   onClick={() => handleRegister(event.id, event.fee)}
-                  className="w-full bg-blue-600/80 hover:bg-blue-600 text-white py-2 rounded-lg transition-colors border border-blue-500/30"
+                  className="btn btn-primary btn-full"
                   disabled={event.status !== 'UPCOMING' || (event.maxParticipants && event._count?.registrations >= event.maxParticipants)}
                 >
                   {event.status !== 'UPCOMING' ? 'Closed' : 'Register Now'}
@@ -133,7 +165,7 @@ const EventsPage = () => {
               {isAdmin && (
                 <button 
                   onClick={() => handleViewAttendees(event.id)}
-                  className="w-full bg-white/10 hover:bg-white/20 text-white py-2 rounded-lg transition-colors border border-white/20"
+                  className="btn btn-secondary btn-full"
                 >
                   View Attendees
                 </button>
@@ -198,6 +230,72 @@ const EventsPage = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-[#1a1a2e] border border-white/10 rounded-xl p-6 w-full max-w-lg shadow-2xl relative">
+            <div className="flex justify-between mb-6">
+              <h2 className="text-xl font-bold">Create Event / Training Camp</h2>
+              <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <form onSubmit={handleCreateEvent} className="space-y-4">
+              <div className="form-group">
+                <label className="form-label">Event Name</label>
+                <input type="text" required className="form-input w-full" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Sport</label>
+                  <select required className="form-select w-full" value={formData.sportId} onChange={e => setFormData({...formData, sportId: e.target.value})}>
+                    <option value="" className="text-black">Select Sport</option>
+                    {sports.map(s => <option key={s.id} value={s.id} className="text-black">{s.name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Type</label>
+                  <select className="form-select w-full" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                    <option value="TRAINING_CAMP" className="text-black">Training Camp</option>
+                    <option value="WORKSHOP" className="text-black">Workshop</option>
+                    <option value="SEMINAR" className="text-black">Seminar</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Start Date</label>
+                  <input type="date" required className="form-input w-full" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">End Date</label>
+                  <input type="date" className="form-input w-full" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Registration Fee ($)</label>
+                  <input type="number" required min="0" step="0.01" className="form-input w-full" value={formData.fee} onChange={e => setFormData({...formData, fee: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Max Participants</label>
+                  <input type="number" required min="1" className="form-input w-full" value={formData.maxParticipants} onChange={e => setFormData({...formData, maxParticipants: e.target.value})} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Venue</label>
+                <input type="text" required className="form-input w-full" value={formData.venue} onChange={e => setFormData({...formData, venue: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Description</label>
+                <textarea className="form-input w-full" rows="3" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setShowCreateModal(false)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" className="btn btn-primary">Create Event</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { Users, Mail, Phone, Calendar, DollarSign, Activity } from 'lucide-react';
+import ConfirmModal from '../components/ConfirmModal';
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deactivateConfirm, setDeactivateConfirm] = useState({ isOpen: false, id: null });
 
   const fetchUsers = async () => {
     try {
@@ -20,6 +22,32 @@ const UsersPage = () => {
   };
 
   useEffect(() => { fetchUsers(); }, []);
+
+  const handleUpdateRole = async (userId, newRole) => {
+    try {
+      await api.put(`/users/${userId}/role`, { role: newRole });
+      toast.success('Role updated');
+      fetchUsers();
+    } catch (err) {
+      toast.error('Failed to update role');
+    }
+  };
+
+  const handleDeactivate = (userId) => {
+    setDeactivateConfirm({ isOpen: true, id: userId });
+  };
+
+  const confirmDeactivate = async () => {
+    try {
+      await api.delete(`/users/${deactivateConfirm.id}`);
+      toast.success('User deactivated successfully');
+      setDeactivateConfirm({ isOpen: false, id: null });
+      fetchUsers();
+    } catch (err) {
+      toast.error('Failed to deactivate user');
+      setDeactivateConfirm({ isOpen: false, id: null });
+    }
+  };
 
   return (
     <div>
@@ -37,10 +65,12 @@ const UsersPage = () => {
               <tr>
                 <th>User Details</th>
                 <th>Role</th>
+                <th>Status</th>
                 <th>Contact Info</th>
                 <th>Activity Stats</th>
                 <th>Total Spent</th>
                 <th>Joined Date</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -62,6 +92,11 @@ const UsersPage = () => {
                   <td>
                     <span className={`badge badge-${u.role === 'ADMIN' ? 'primary' : 'secondary'}`}>
                       {u.role}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`badge badge-${u.isActive ? 'success' : 'danger'}`}>
+                      {u.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </td>
                   <td>
@@ -89,15 +124,44 @@ const UsersPage = () => {
                       {new Date(u.createdAt).toLocaleDateString()}
                     </div>
                   </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <select 
+                        className="form-input" 
+                        style={{ padding: '4px 8px', fontSize: 13, width: 'auto' }}
+                        value={u.role}
+                        onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                        disabled={!u.isActive}
+                      >
+                        <option value="CUSTOMER">Customer</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                      {u.isActive && (
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(u.id)}>
+                          Deactivate
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {users.length === 0 && (
-                <tr><td colSpan="6" className="text-center py-8">No users found</td></tr>
+                <tr><td colSpan="8" className="text-center py-8">No users found</td></tr>
               )}
             </tbody>
           </table>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deactivateConfirm.isOpen}
+        title="Deactivate User"
+        message="Are you sure you want to deactivate this user? This will cancel their upcoming bookings."
+        confirmText="Deactivate"
+        isDanger={true}
+        onConfirm={confirmDeactivate}
+        onCancel={() => setDeactivateConfirm({ isOpen: false, id: null })}
+      />
     </div>
   );
 };

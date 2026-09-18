@@ -175,18 +175,16 @@ const createBooking = async (req, res) => {
     }
 
     const qrToken = uuidv4();
-    const qrPayload = JSON.stringify({ bookingId: null, token: qrToken, userId: targetUserId });
-    const qrCode = await QRCode.toDataURL(qrPayload);
 
-    const booking = await prisma.$transaction(async (tx) => {
+    let booking = await prisma.$transaction(async (tx) => {
       const claimed = await tx.bookingSlot.updateMany({ where: { id: parseInt(slotId), isBooked: false }, data: { isBooked: true } });
       if (!claimed.count) throw Object.assign(new Error('Slot already booked'), { status: 409 });
+      
       const b = await tx.booking.create({
         data: {
           userId: targetUserId,
           slotId: parseInt(slotId),
           qrToken,
-          qrCode,
           basePrice,
           membershipDiscount,
           promoDiscount,
@@ -200,6 +198,12 @@ const createBooking = async (req, res) => {
         }
       });
       await tx.bookingSlot.update({ where: { id: parseInt(slotId) }, data: { isBooked: true } });
+      
+      const qrPayload = JSON.stringify({ bookingId: b.id, token: qrToken, userId: targetUserId });
+      const qrCode = await QRCode.toDataURL(qrPayload);
+      
+      await tx.booking.update({ where: { id: b.id }, data: { qrCode } });
+      b.qrCode = qrCode;
       
       if (promoCodeId) {
          await tx.promoCode.update({ where: { id: promoCodeId }, data: { usedCount: { increment: 1 } } });
@@ -238,13 +242,25 @@ const createBooking = async (req, res) => {
 
 const cancelBooking = async (req, res) => {
   try {
-    const booking = await prisma.booking.findUnique({ where: { id: parseInt(req.params.id) } });
+    const booking = await prisma.booking.findUnique({ 
+      where: { id: parseInt(req.params.id) },
+      include: { slot: true } 
+    });
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
     if (booking.userId !== req.user.id && req.user.role !== 'ADMIN') {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
     if (!['CONFIRMED', 'PENDING_PAYMENT'].includes(booking.status)) {
       return res.status(400).json({ success: false, message: 'Booking cannot be cancelled' });
+    }
+
+    const slotDateStr = booking.slot.date.toISOString().split('T')[0];
+    const slotDateTime = new Date(`${slotDateStr}T${booking.slot.startTime}:00`);
+    const now = new Date();
+    const hoursDifference = (slotDateTime - now) / (1000 * 60 * 60);
+
+    if (hoursDifference < 2 && req.user.role !== 'ADMIN') {
+      return res.status(400).json({ success: false, message: 'Bookings can only be cancelled at least 2 hours in advance.' });
     }
 
     await prisma.$transaction(async (tx) => {

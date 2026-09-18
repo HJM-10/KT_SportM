@@ -109,6 +109,7 @@ model User {
   promoUsages     PromoCodeUsage[]
   membership      Membership?
   notifications   Notification[]
+  isActive        Boolean           @default(true)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 }

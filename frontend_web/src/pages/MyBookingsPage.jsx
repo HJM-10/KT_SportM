@@ -121,33 +121,48 @@ const MyBookingsPage = () => {
                 <div style={{fontWeight: 700, fontSize: 18}}>${b.totalPrice}</div>
                 
                 <div className="flex gap-8">
-                  {b.status === 'PENDING_PAYMENT' && b.payment && (
-                    <>
-                      <button className="btn btn-success btn-sm" onClick={() => {
-                        setPaymentData({
-                          paymentId: b.payment.id,
-                          paymentIntentId: b.payment.stripeClientSecret.split('_secret_')[0],
-                          amount: b.totalPrice
-                        });
-                        setShowPayment(true);
-                      }}>
-                        Pay Now
-                      </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => confirmCancel(b.id)}>
-                        Cancel
-                      </button>
-                    </>
-                  )}
-                  {b.status === 'CONFIRMED' && (
-                    <>
-                      <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/my-bookings/${b.id}/qr`)}>
-                        Show QR
-                      </button>
-                      <button className="btn btn-danger btn-sm" onClick={() => confirmCancel(b.id)}>
-                        Cancel
-                      </button>
-                    </>
-                  )}
+                  {(() => {
+                    const slotDateTime = new Date(`${b.slot.date.split('T')[0]}T${b.slot.startTime}:00`);
+                    const now = new Date();
+                    const hoursDifference = (slotDateTime - now) / (1000 * 60 * 60);
+                    const canCancel = hoursDifference >= 2;
+
+                    return (
+                      <>
+                        {b.status === 'PENDING_PAYMENT' && b.payment && (
+                          <>
+                            <button className="btn btn-success btn-sm" onClick={() => {
+                              setPaymentData({
+                                paymentId: b.payment.id,
+                                paymentIntentId: b.payment.stripeClientSecret.split('_secret_')[0],
+                                amount: b.totalPrice
+                              });
+                              setShowPayment(true);
+                            }}>
+                              Pay Now
+                            </button>
+                            {canCancel && (
+                              <button className="btn btn-danger btn-sm" onClick={() => confirmCancel(b.id)}>
+                                Cancel
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {b.status === 'CONFIRMED' && (
+                          <>
+                            <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/my-bookings/${b.id}/qr`)}>
+                              Show QR
+                            </button>
+                            {canCancel && (
+                              <button className="btn btn-danger btn-sm" onClick={() => confirmCancel(b.id)}>
+                                Cancel
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                   {b.status === 'SCANNED' && (
                     <button className="btn btn-secondary btn-sm bg-yellow-600 hover:bg-yellow-700" onClick={() => openReviewModal(b)}>
                       Rate Experience

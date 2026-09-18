@@ -70,51 +70,47 @@ const PromoCodesPage = () => {
         Promo Codes Management
       </h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
-          <div className="glass-panel p-6">
-            <h2 className="text-xl font-bold mb-4">Create New Code</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Code</label>
-                <input type="text" value={code} onChange={e => setCode(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 uppercase" placeholder="e.g. SUMMER20" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Type</label>
-                  <select value={discountType} onChange={e => setDiscountType(e.target.value)} className="w-full bg-[#1a1a2e] border border-white/10 rounded px-3 py-2">
-                    <option value="PERCENTAGE">Percentage (%)</option>
-                    <option value="FIXED">Fixed Amount (Rs)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Value</label>
-                  <input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded px-3 py-2" placeholder="20" min="1" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Max Uses</label>
-                  <input type="number" value={maxUses} onChange={e => setMaxUses(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2" placeholder="Unlimited" min="1" />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Min Order (Rs)</label>
-                  <input type="number" value={minOrderAmount} onChange={e => setMinOrderAmount(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2" placeholder="0" min="0" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Expiry Date (Optional)</label>
-                <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded px-3 py-2" />
-              </div>
-              <button type="submit" className="w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg transition-colors shadow-[0_0_15px_rgba(219,39,119,0.5)]">
+      <div>
+        <div className="card mb-24">
+          <h2 className="text-xl font-bold mb-16">Create New Code</h2>
+          <form onSubmit={handleCreate} className="grid-3 items-center">
+            <div className="form-group">
+              <label className="form-label">Code</label>
+              <input type="text" value={code} onChange={e => setCode(e.target.value)} required className="form-input uppercase" placeholder="e.g. SUMMER20" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Type</label>
+              <select value={discountType} onChange={e => setDiscountType(e.target.value)} className="form-select">
+                <option value="PERCENTAGE" className="text-black">Percentage (%)</option>
+                <option value="FIXED" className="text-black">Fixed Amount (Rs)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Value</label>
+              <input type="number" value={discountValue} onChange={e => setDiscountValue(e.target.value)} required className="form-input" placeholder="20" min="1" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Max Uses</label>
+              <input type="number" value={maxUses} onChange={e => setMaxUses(e.target.value)} className="form-input" placeholder="Unlimited" min="1" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Min Order (Rs)</label>
+              <input type="number" value={minOrderAmount} onChange={e => setMinOrderAmount(e.target.value)} className="form-input" placeholder="0" min="0" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Expiry Date (Optional)</label>
+              <input type="date" value={expiresAt} onChange={e => setExpiresAt(e.target.value)} className="form-input" />
+            </div>
+            <div style={{ gridColumn: '1 / -1', marginTop: '10px' }}>
+              <button type="submit" className="btn btn-primary btn-full">
                 Create Code
               </button>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
 
-        <div className="lg:col-span-2">
-          <div className="glass-panel overflow-hidden">
+        <div>
+          <div className="card overflow-hidden" style={{ padding: 0 }}>
             <table className="w-full text-left text-sm text-gray-300">
               <thead className="text-xs uppercase bg-white/5 text-gray-400 border-b border-white/10">
                 <tr>
@@ -147,7 +143,7 @@ const PromoCodesPage = () => {
                     <td className="px-6 py-4 text-right">
                       <button 
                         onClick={() => toggleStatus(promo.id, promo.isActive)}
-                        className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1 rounded transition-colors"
+                        className="btn btn-secondary btn-sm"
                       >
                         Toggle
                       </button>

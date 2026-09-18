@@ -34,10 +34,21 @@ const ReportsPage = () => {
     fetchReports();
   }, []);
 
-  const handleExport = () => {
-    window.open('http://localhost:5000/api/reports/export/bookings', '_blank');
+  const handleExport = async () => {
+    try {
+      const response = await axios.get('/reports/export/bookings', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'bookings.csv');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success('Export downloaded');
+    } catch (err) {
+      toast.error('Failed to export data');
+    }
   };
-
   if (loading) return <div className="p-6 text-white text-center">Gathering analytics...</div>;
 
   return (
@@ -51,58 +62,57 @@ const ReportsPage = () => {
         </div>
         <button 
           onClick={handleExport}
-          className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors border border-white/10 flex items-center gap-2"
+          className="btn btn-secondary"
         >
           <BarChart3 size={18} /> Export Data
         </button>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="glass-panel p-6 border-b-4 border-b-emerald-500">
-          <div className="flex justify-between items-start mb-4">
-            <div className="text-gray-400">Total Revenue</div>
-            <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400"><DollarSign size={20} /></div>
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(16,185,129,0.2)', color: 'var(--success)' }}><DollarSign size={24} /></div>
+          <div>
+            <div className="stat-value">Rs. {revenue?.totalRevenue?.toLocaleString() || 0}</div>
+            <div className="stat-label">Total Revenue</div>
           </div>
-          <div className="text-3xl font-bold text-white">Rs. {revenue?.totalRevenue?.toLocaleString() || 0}</div>
         </div>
         
-        <div className="glass-panel p-6 border-b-4 border-b-blue-500">
-          <div className="flex justify-between items-start mb-4">
-            <div className="text-gray-400">Facility Utilization</div>
-            <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400"><TrendingUp size={20} /></div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(6,182,212,0.2)', color: 'var(--secondary)' }}><TrendingUp size={24} /></div>
+          <div>
+            <div className="stat-value">{utilization?.utilizationRate?.toFixed(1) || 0}%</div>
+            <div className="stat-label">{utilization?.bookedSlots} / {utilization?.totalSlots} slots booked</div>
           </div>
-          <div className="text-3xl font-bold text-white">{utilization?.utilizationRate?.toFixed(1) || 0}%</div>
-          <div className="text-sm text-gray-500 mt-2">{utilization?.bookedSlots} / {utilization?.totalSlots} slots booked</div>
         </div>
 
-        <div className="glass-panel p-6 border-b-4 border-b-purple-500">
-          <div className="flex justify-between items-start mb-4">
-            <div className="text-gray-400">Total Customers</div>
-            <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400"><Users size={20} /></div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(99,102,241,0.2)', color: 'var(--primary-light)' }}><Users size={24} /></div>
+          <div>
+            <div className="stat-value">{customers?.totalCustomers || 0}</div>
+            <div className="stat-label">Total Customers</div>
           </div>
-          <div className="text-3xl font-bold text-white">{customers?.totalCustomers || 0}</div>
         </div>
 
-        <div className="glass-panel p-6 border-b-4 border-b-orange-500">
-          <div className="flex justify-between items-start mb-4">
-            <div className="text-gray-400">Completed Bookings</div>
-            <div className="p-2 bg-orange-500/20 rounded-lg text-orange-400"><Calendar size={20} /></div>
-          </div>
-          <div className="text-3xl font-bold text-white">
-            {(bookings?.statusCounts?.CONFIRMED || 0) + (bookings?.statusCounts?.SCANNED || 0)}
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--warning)' }}><Calendar size={24} /></div>
+          <div>
+            <div className="stat-value">
+              {(bookings?.statusCounts?.CONFIRMED || 0) + (bookings?.statusCounts?.SCANNED || 0)}
+            </div>
+            <div className="stat-label">Completed Bookings</div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="glass-panel p-6">
+      <div className="grid-2">
+        <div className="card">
           <h2 className="text-xl font-bold mb-6 text-white border-b border-white/10 pb-4">Top Spending Customers</h2>
           <div className="space-y-4">
             {customers?.topCustomers?.map((c, i) => (
-              <div key={i} className="flex justify-between items-center bg-white/5 p-4 rounded-lg border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+              <div key={i} className="list-item">
+                <div className="list-item-left">
+                  <div className="avatar">
                     {i + 1}
                   </div>
                   <div>
@@ -119,13 +129,13 @@ const ReportsPage = () => {
           </div>
         </div>
         
-        <div className="glass-panel p-6">
+        <div className="card">
           <h2 className="text-xl font-bold mb-6 text-white border-b border-white/10 pb-4">Revenue by Month</h2>
           <div className="space-y-4">
             {revenue?.revenueByMonth && Object.keys(revenue.revenueByMonth).length > 0 ? (
               Object.keys(revenue.revenueByMonth).sort().reverse().map(month => (
-                <div key={month} className="flex flex-col gap-2 bg-white/5 p-4 rounded-lg border border-white/5">
-                  <div className="flex justify-between items-center mb-1">
+                <div key={month} className="revenue-item">
+                  <div className="revenue-item-header">
                     <div className="font-bold text-white">{month}</div>
                     <div className="text-emerald-400 font-bold">Rs. {revenue.revenueByMonth[month].toLocaleString()}</div>
                   </div>

@@ -1,23 +1,23 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
 
-const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm', cancelText = 'Cancel' }) => {
+const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm', cancelText = 'Cancel', isDanger = false }) => {
   if (!isOpen) return null;
 
   return (
     <div className="modal-overlay">
-      <div className="modal" style={{ maxWidth: '400px' }}>
-        <div className="modal-header" style={{ marginBottom: '16px' }}>
-          <h2 className="modal-title flex items-center gap-8" style={{ color: 'var(--danger)' }}>
-            <AlertTriangle size={24} /> {title}
-          </h2>
+      <div className="modal" style={{ maxWidth: '400px', animation: 'slideIn 0.3s ease-out' }}>
+        <div className="modal-header">
+          <h2 className="modal-title">{title}</h2>
+          <button className="modal-close" onClick={onCancel}>&times;</button>
         </div>
-        <div className="modal-body" style={{ marginBottom: '24px', color: 'var(--text-muted)' }}>
+        <div style={{ marginBottom: '24px', color: 'var(--text-muted)' }}>
           {message}
         </div>
-        <div className="modal-actions">
+        <div className="modal-actions" style={{ marginTop: '0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
           <button className="btn btn-secondary" onClick={onCancel}>{cancelText}</button>
-          <button className="btn btn-danger" onClick={onConfirm}>{confirmText}</button>
+          <button className={`btn ${isDanger ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>
+            {confirmText}
+          </button>
         </div>
       </div>
     </div>

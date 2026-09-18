@@ -9,6 +9,7 @@ const getUsers = async (req, res) => {
         email: true,
         phone: true,
         role: true,
+        isActive: true,
         createdAt: true,
         _count: {
           select: {
@@ -47,5 +48,56 @@ const getUsers = async (req, res) => {
   }
 };
 
-module.exports = { getUsers };
+const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (!['ADMIN', 'CUSTOMER'].includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+    const user = await prisma.user.update({
+      where: { id: parseInt(req.params.id) },
+      data: { role }
+    });
+    res.json({ success: true, message: 'User role updated', data: user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    
+    await prisma.$transaction(async (tx) => {
+      // Mark user as inactive
+      await tx.user.update({
+        where: { id: userId },
+        data: { isActive: false }
+      });
+
+      // Cancel all upcoming active bookings
+      const activeBookings = await tx.booking.findMany({
+        where: {
+          userId,
+          status: { in: ['PENDING_PAYMENT', 'CONFIRMED'] }
+        },
+        include: { slot: true }
+      });
+
+      for (const b of activeBookings) {
+        await tx.booking.update({ where: { id: b.id }, data: { status: 'CANCELLED' } });
+        await tx.bookingSlot.update({ where: { id: b.slotId }, data: { isBooked: false } });
+        await tx.payment.updateMany({ where: { bookingId: b.id, status: 'PENDING' }, data: { status: 'FAILED' } });
+      }
+    });
+
+    res.json({ success: true, message: 'User marked as inactive and future bookings cancelled' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { getUsers, updateUserRole, deleteUser };
 
