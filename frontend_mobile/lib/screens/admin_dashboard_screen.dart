@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import 'admin_sports_screen.dart';
+import 'admin_users_screen.dart';
+import 'admin_venues_screen.dart';
+import 'admin_bookings_screen.dart';
+import 'admin_tournaments_screen.dart';
+import 'admin_events_screen.dart';
+import 'admin_payments_screen.dart';
+import 'admin_reports_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -58,14 +66,14 @@ class AdminDashboardScreen extends StatelessWidget {
                   mainAxisSpacing: 16,
                   crossAxisSpacing: 16,
                   children: [
-                    _buildFeatureCard(context, 'Sports', Icons.sports_soccer, Colors.orange),
-                    _buildFeatureCard(context, 'Venues', Icons.stadium, Colors.blue),
-                    _buildFeatureCard(context, 'Users', Icons.people, Colors.green),
-                    _buildFeatureCard(context, 'Bookings', Icons.book_online, Colors.purple),
-                    _buildFeatureCard(context, 'Tournaments', Icons.emoji_events, Colors.amber),
-                    _buildFeatureCard(context, 'Events', Icons.event, Colors.cyan),
-                    _buildFeatureCard(context, 'Payments', Icons.payment, Colors.teal),
-                    _buildFeatureCard(context, 'Reports', Icons.bar_chart, Colors.redAccent),
+                    _buildFeatureCard(context, 'Sports', Icons.sports_soccer, Colors.orange, screen: const AdminSportsScreen()),
+                    _buildFeatureCard(context, 'Venues', Icons.stadium, Colors.blue, screen: const AdminVenuesScreen()),
+                    _buildFeatureCard(context, 'Users', Icons.people, Colors.green, screen: const AdminUsersScreen()),
+                    _buildFeatureCard(context, 'Bookings', Icons.book_online, Colors.purple, screen: const AdminBookingsScreen()),
+                    _buildFeatureCard(context, 'Tournaments', Icons.emoji_events, Colors.amber, screen: const AdminTournamentsScreen()),
+                    _buildFeatureCard(context, 'Events', Icons.event, Colors.cyan, screen: const AdminEventsScreen()),
+                    _buildFeatureCard(context, 'Payments', Icons.payment, Colors.teal, screen: const AdminPaymentsScreen()),
+                    _buildFeatureCard(context, 'Reports', Icons.bar_chart, Colors.redAccent, screen: const AdminReportsScreen()),
                   ],
                 ),
               ],
@@ -76,13 +84,19 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureCard(BuildContext context, String title, IconData icon, Color color) {
+  Widget _buildFeatureCard(BuildContext context, String title, IconData icon, Color color, {String? route, Widget? screen}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$title management coming soon!')),
-        );
+        if (screen != null) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+        } else if (route != null) {
+          Navigator.pushNamed(context, route);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$title management coming soon!')),
+          );
+        }
       },
       borderRadius: BorderRadius.circular(24),
       child: Container(
