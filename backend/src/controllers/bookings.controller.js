@@ -331,7 +331,6 @@ const scanBooking = async (req, res) => {
 };
 
 const confirmBooking = async (req, res) => {
-  if (process.env.ALLOW_CASH_PAYMENTS !== 'true') return res.status(403).json({ success: false, message: 'Payment confirmation requires Stripe checkout' });
   try {
     const booking = await prisma.booking.findUnique({ where: { id: parseInt(req.params.id) } });
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });

@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Trophy, Swords, Dumbbell,
-  CalendarCheck, QrCode, LogOut, ScanLine, Settings, Building, Users
+  CalendarCheck, QrCode, LogOut, ScanLine, Settings, Building, Users,
+  Building2, Star, MapPin
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 
@@ -19,10 +20,12 @@ const Sidebar = () => {
         { to: '/tournaments', icon: <Trophy />, label: 'Tournaments' },
         { to: '/matches', icon: <Swords />, label: 'Matches' },
         { to: '/bookings', icon: <CalendarCheck />, label: 'Bookings' },
+        { to: '/venues', icon: <Building2 />, label: 'Venues' },
         { to: '/events', icon: <CalendarCheck />, label: 'Events' },
         { to: '/equipment', icon: <Dumbbell />, label: 'Equipment' },
         { to: '/payments', icon: <LayoutDashboard />, label: 'Payments' },
         { to: '/promo', icon: <ScanLine />, label: 'Promo Codes' },
+        { to: '/reviews', icon: <Star />, label: 'Reviews' },
         { to: '/complaints', icon: <Settings />, label: 'Complaints' },
         { to: '/reports', icon: <LayoutDashboard />, label: 'Reports' },
         { to: '/settings', icon: <Settings />, label: 'Settings' },

@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/payment_service.dart';
 import 'package:intl/intl.dart';
 import 'booking_qr_screen.dart';
+import 'write_review_screen.dart';
 import '../utils/icon_helper.dart';
 import '../utils/ui_utils.dart';
 
@@ -104,8 +105,21 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                       itemCount: _bookings.length,
                       itemBuilder: (context, index) {
                         final b = _bookings[index];
-                        final dateStr = DateFormat.yMMMd().format(DateTime.parse(b['slot']['date']));
+                        final slotDate = b['slot']?['date'] as String?;
+                        final dateStr = slotDate != null
+                            ? DateFormat.yMMMd().format(DateTime.parse(slotDate))
+                            : 'Date TBD';
                         final isConfirmed = b['status'] == 'CONFIRMED';
+                        final isCancelled = b['status'] == 'CANCELLED';
+                        final isScanned = b['status'] == 'SCANNED';
+                        final isPending = b['status'] == 'PENDING_PAYMENT';
+                        
+                        Color badgeColor;
+                        Color badgeBg;
+                        if (isConfirmed) { badgeColor = const Color(0xFF818CF8); badgeBg = const Color(0xFF6366F1); }
+                        else if (isScanned) { badgeColor = Colors.green; badgeBg = Colors.green; }
+                        else if (isPending) { badgeColor = Colors.orange; badgeBg = Colors.orange; }
+                        else { badgeColor = Colors.red; badgeBg = Colors.red; }
                         
                         return Card(
                           margin: const EdgeInsets.only(bottom: 16),
@@ -124,15 +138,13 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: isConfirmed ? const Color(0xFF6366F1).withValues(alpha: 0.15) 
-                                            : b['status'] == 'SCANNED' ? Colors.green.withValues(alpha: 0.15) : Colors.red.withValues(alpha: 0.15),
+                                        color: badgeBg.withValues(alpha: 0.15),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
                                         b['status'],
                                         style: TextStyle(
-                                          color: isConfirmed ? const Color(0xFF818CF8) 
-                                              : b['status'] == 'SCANNED' ? Colors.green : Colors.red,
+                                          color: badgeColor,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -186,7 +198,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('\$${b['totalPrice'] ?? b['basePrice']}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                Text('Rs. ${b['finalPrice'] ?? b['basePrice']}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                                     if (isConfirmed)
                                       Row(
                                         children: [
@@ -208,7 +220,28 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                             child: const Text('Show QR'),
                                           ),
                                         ],
-                                      )
+                                      ),
+                                    if (b['status'] == 'SCANNED')
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => WriteReviewScreen(
+                                                bookingId: b['id'],
+                                                venueId: b['slot']['venue']['id'],
+                                                venueName: b['slot']['venue']['name'],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.star_outline, size: 16),
+                                        label: const Text('Review'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFFF59E0B),
+                                          foregroundColor: Colors.black,
+                                        ),
+                                      ),
                                   ],
                                 )
                               ],

@@ -50,7 +50,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
                   itemCount: _matches.length,
                   itemBuilder: (context, index) {
                     final m = _matches[index];
-                    final dateStr = DateFormat('MMM d, yyyy - h:mm a').format(DateTime.parse(m['scheduledAt']));
+                    final scheduledRaw = m['scheduledAt'] as String?;
+                    final dateStr = scheduledRaw != null
+                        ? DateFormat('MMM d, yyyy – h:mm a').format(DateTime.parse(scheduledRaw))
+                        : 'TBD';
                     
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -88,7 +91,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    m['team1'],
+                                    (m['team1'] as String?) ?? 'TBD',
                                     textAlign: TextAlign.right,
                                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                   ),
@@ -105,7 +108,7 @@ class _MatchesScreenState extends State<MatchesScreen> {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Text(
-                                    m['team2'],
+                                    (m['team2'] as String?) ?? 'TBD',
                                     textAlign: TextAlign.left,
                                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                   ),
@@ -116,10 +119,10 @@ class _MatchesScreenState extends State<MatchesScreen> {
                               const SizedBox(height: 16),
                               const Divider(color: Colors.white12),
                               const SizedBox(height: 8),
-                              Text(
-                                'Winner: ${m['winner'] == 'team1' ? m['team1'] : m['winner'] == 'team2' ? m['team2'] : 'Draw'}',
-                                style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-                              ),
+                                Text(
+                                  'Winner: ${m['winner'] == 'team1' ? ((m['team1'] as String?) ?? 'Team 1') : m['winner'] == 'team2' ? ((m['team2'] as String?) ?? 'Team 2') : 'Draw'}',
+                                  style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                                ),
                             ]
                           ],
                         ),

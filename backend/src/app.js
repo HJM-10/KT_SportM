@@ -21,6 +21,7 @@ const recommendationsRoutes = require('./routes/recommendations.routes');
 const reportsRoutes = require('./routes/reports.routes');
 const usersRoutes = require('./routes/users.routes');
 const errorHandler = require('./middleware/errorHandler');
+const { authenticate } = require('./middleware/auth');
 
 const app = express();
 app.disable('x-powered-by');
@@ -48,6 +49,10 @@ app.get('/api/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+
+// Apply authentication middleware globally for all subsequent API routes
+app.use('/api', authenticate);
+
 app.use('/api/sports', sportsRoutes);
 app.use('/api/venues', venuesRoutes);
 app.use('/api/bookings', bookingsRoutes);

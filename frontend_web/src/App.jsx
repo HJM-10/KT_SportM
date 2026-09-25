@@ -22,6 +22,8 @@ import PromoCodesPage from './pages/PromoCodesPage';
 import ReportsPage from './pages/ReportsPage';
 import PaymentsPage from './pages/PaymentsPage';
 import UsersPage from './pages/UsersPage';
+import VenuesPage from './pages/VenuesPage';
+import ReviewsPage from './pages/ReviewsPage';
 
 function App() {
   return (
@@ -48,6 +50,8 @@ function App() {
           <Route path="scan" element={<ProtectedRoute adminOnly><ScanBookingPage /></ProtectedRoute>} />
           <Route path="promo" element={<ProtectedRoute adminOnly><PromoCodesPage /></ProtectedRoute>} />
           <Route path="reports" element={<ProtectedRoute adminOnly><ReportsPage /></ProtectedRoute>} />
+          <Route path="venues" element={<ProtectedRoute adminOnly><VenuesPage /></ProtectedRoute>} />
+          <Route path="reviews" element={<ProtectedRoute adminOnly><ReviewsPage /></ProtectedRoute>} />
           <Route path="payments" element={<ProtectedRoute adminOnly><PaymentsPage /></ProtectedRoute>} />
           <Route path="users" element={<ProtectedRoute adminOnly><UsersPage /></ProtectedRoute>} />
         </Route>

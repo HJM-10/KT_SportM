@@ -5,27 +5,28 @@ import '../services/push_service.dart';
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
   bool _isAuthenticated = false;
+  bool _isLoading = true;
   Map<String, dynamic>? _user;
 
   bool get isAuthenticated => _isAuthenticated;
+  bool get isLoading => _isLoading;
   Map<String, dynamic>? get user => _user;
 
   Future<void> checkAuth() async {
-    final token = await _apiService.storage.read(key: 'ssh_token');
-    if (token != null) {
-      try {
-        final res = await _apiService.dio.get('/auth/me');
-        _user = res.data['data'];
-        _isAuthenticated = true;
-      await PushService.register();
-      } catch (e) {
-        await logout();
-      }
-    }
+    _isLoading = true;
+    notifyListeners();
+    
+    // The user requested that the app should ALWAYS ask for a password on startup.
+    // So we clear any existing token instead of attempting to auto-login.
+    await _apiService.storage.delete(key: 'ssh_token');
+    _user = null;
+    _isAuthenticated = false;
+
+    _isLoading = false;
     notifyListeners();
   }
 
-  Future<bool> login(String email, String password) async {
+  Future<String?> login(String email, String password) async {
     try {
       final res = await _apiService.dio.post('/auth/login', data: {
         'email': email,
@@ -37,9 +38,9 @@ class AuthProvider with ChangeNotifier {
       _isAuthenticated = true;
       await PushService.register();
       notifyListeners();
-      return true;
+      return null;
     } catch (e) {
-      return false;
+      return 'Login failed. Please check credentials.';
     }
   }
 
@@ -60,6 +61,13 @@ class AuthProvider with ChangeNotifier {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  void updateUser(Map<String, dynamic> updates) {
+    if (_user != null) {
+      _user = { ..._user!, ...updates };
+      notifyListeners();
     }
   }
 

@@ -2,15 +2,33 @@ import { create } from 'zustand';
 import api from '../api/axios';
 
 const useAuthStore = create((set) => ({
-  user: JSON.parse(localStorage.getItem('ssh_user') || 'null'),
+  user: null,
   token: localStorage.getItem('ssh_token') || null,
-  isAuthenticated: !!localStorage.getItem('ssh_token'),
+  isAuthenticated: false,
+  isLoading: true, // true until server verifies the token
+
+  // Called once on app startup — validates token against server
+  init: async () => {
+    const token = localStorage.getItem('ssh_token');
+    if (!token) {
+      set({ isLoading: false, isAuthenticated: false, user: null });
+      return;
+    }
+    try {
+      const res = await api.get('/auth/me');
+      // Trust only server-returned user data, never localStorage role
+      set({ user: res.data.data, isAuthenticated: true, isLoading: false });
+    } catch {
+      // Token is invalid or expired — clear everything
+      localStorage.removeItem('ssh_token');
+      set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+    }
+  },
 
   login: async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     const { user, token } = res.data.data;
     localStorage.setItem('ssh_token', token);
-    localStorage.setItem('ssh_user', JSON.stringify(user));
     set({ user, token, isAuthenticated: true });
     return user;
   },
@@ -19,14 +37,16 @@ const useAuthStore = create((set) => ({
     const res = await api.post('/auth/register', { name, email, password, phone });
     const { user, token } = res.data.data;
     localStorage.setItem('ssh_token', token);
-    localStorage.setItem('ssh_user', JSON.stringify(user));
     set({ user, token, isAuthenticated: true });
     return user;
   },
 
+  updateUser: (updatedUser) => {
+    set((state) => ({ user: { ...state.user, ...updatedUser } }));
+  },
+
   logout: () => {
     localStorage.removeItem('ssh_token');
-    localStorage.removeItem('ssh_user');
     set({ user: null, token: null, isAuthenticated: false });
   }
 }));

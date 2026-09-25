@@ -7,3 +7,5 @@ dist/
 build/
 *.log
 .DS_Store
+firebase-admin-key.json
+credentials.txt

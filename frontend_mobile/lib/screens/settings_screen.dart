@@ -47,12 +47,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateProfile() async {
     setState(() => _isProfileLoading = true);
     try {
-      await _apiService.dio.put('/auth/me', data: {
+      final res = await _apiService.dio.put('/auth/me', data: {
         'name': _nameController.text,
         'phone': _phoneController.text,
       });
-      // In a real app, update AuthProvider user here.
+      // Update in-memory user so dashboard name refreshes immediately
       if (mounted) {
+        Provider.of<AuthProvider>(context, listen: false).updateUser({
+          'name': _nameController.text,
+          'phone': _phoneController.text,
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );

@@ -106,7 +106,7 @@ class _ComplaintsScreenState extends State<ComplaintsScreen> {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(c['description']),
+                      Text((c['description'] as String?) ?? ''),
                       if (c['adminNote'] != null) ...[
                         const SizedBox(height: 4),
                         Text('Admin: ${c['adminNote']}', style: const TextStyle(color: Colors.green)),

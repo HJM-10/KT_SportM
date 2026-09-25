@@ -12,6 +12,7 @@ import 'screens/my_bookings_screen.dart';
 import 'screens/settings_screen.dart';
 import 'providers/theme_provider.dart';
 
+import 'screens/admin_dashboard_screen.dart';
 import 'screens/events_screen.dart';
 import 'screens/equipment_screen.dart';
 import 'screens/membership_screen.dart';
@@ -46,7 +47,17 @@ class SmartSportsHubApp extends StatelessWidget {
           darkTheme: ThemeProvider.darkTheme,
           home: Consumer<AuthProvider>(
             builder: (context, auth, _) {
+              if (auth.isLoading) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
               if (auth.isAuthenticated) {
+                if (auth.user?['role'] == 'ADMIN') {
+                  return const AdminDashboardScreen();
+                }
                 return const MainLayout();
               }
               return const LoginScreen();

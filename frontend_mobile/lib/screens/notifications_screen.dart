@@ -46,7 +46,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               return ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.notifications)),
                 title: Text(n['title'], style: TextStyle(fontWeight: n['isRead'] ? FontWeight.normal : FontWeight.bold)),
-                subtitle: Text(n['body']),
+                subtitle: Text((n['body'] as String?) ?? ''),
               );
             },
           )
