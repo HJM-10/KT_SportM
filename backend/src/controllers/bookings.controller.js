@@ -10,13 +10,32 @@ const getSlots = async (req, res) => {
       return res.status(400).json({ success: false, message: 'venueId and date are required' });
     }
     const targetDate = new Date(date);
-    const slots = await prisma.bookingSlot.findMany({
+    let slots = await prisma.bookingSlot.findMany({
       where: {
         venueId: parseInt(venueId),
         date: targetDate
       },
       orderBy: { startTime: 'asc' }
     });
+
+    if (slots.length === 0) {
+      const newSlots = [];
+      for (let i = 9; i <= 21; i++) {
+        newSlots.push({
+          venueId: parseInt(venueId),
+          date: targetDate,
+          startTime: `${i.toString().padStart(2, '0')}:00`,
+          endTime: `${(i + 1).toString().padStart(2, '0')}:00`,
+          isBooked: false
+        });
+      }
+      await prisma.bookingSlot.createMany({ data: newSlots });
+      slots = await prisma.bookingSlot.findMany({
+        where: { venueId: parseInt(venueId), date: targetDate },
+        orderBy: { startTime: 'asc' }
+      });
+    }
+
     res.json({ success: true, data: slots });
   } catch (err) {
     console.error(err);

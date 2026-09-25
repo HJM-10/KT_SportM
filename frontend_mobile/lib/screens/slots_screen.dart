@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:dio/dio.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
 
@@ -37,8 +38,11 @@ class _SlotsScreenState extends State<SlotsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reservation created. Complete payment to confirm.')));
       if ((record['finalPrice'] as num) > 0) await PaymentService.checkout(record['paymentId']);
       await load();
-    } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not complete checkout. Check My Bookings before trying again.')));
+    } catch (e) {
+      final String msg = e is DioException && e.response?.data?['message'] != null 
+          ? e.response!.data!['message'] 
+          : 'Could not complete checkout. Check My Bookings before trying again.';
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       if (mounted) await load();
     } finally { if (mounted) setState(() => booking = false); }
   }
@@ -54,10 +58,20 @@ class _SlotsScreenState extends State<SlotsScreen> {
       if (loading) const Center(child: CircularProgressIndicator())
       else if (error != null) TextButton(onPressed: load, child: Text(error!))
       else if (slots.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('No slots on this date. Choose another date.')),
-      if (!loading) ...slots.map((slot) => Card(child: ListTile(
-        title: Text('${slot['startTime']} – ${slot['endTime']}'),
-        trailing: ElevatedButton(onPressed: booking || slot['isBooked'] == true ? null : () => reserve(slot['id']), child: Text(slot['isBooked'] == true ? 'Unavailable' : 'Reserve')),
-      ))),
+      if (!loading) ...slots.map((slot) {
+        final slotDateStr = (slot['date'] as String).split('T')[0];
+        final slotTimeStr = slot['startTime'] as String;
+        final slotDateTime = DateTime.parse('${slotDateStr}T$slotTimeStr:00');
+        final isPast = slotDateTime.isBefore(DateTime.now());
+        final isUnavailable = slot['isBooked'] == true || isPast;
+        return Card(child: ListTile(
+          title: Text('${slot['startTime']} – ${slot['endTime']}'),
+          trailing: ElevatedButton(
+            onPressed: booking || isUnavailable ? null : () => reserve(slot['id']),
+            child: Text(slot['isBooked'] == true ? 'Booked' : isPast ? 'Passed' : 'Reserve'),
+          ),
+        ));
+      }),
     ]),
   );
 }

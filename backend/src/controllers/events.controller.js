@@ -96,7 +96,24 @@ const updateEvent = async (req, res) => {
 
 const deleteEvent = async (req, res) => {
   try {
-    await prisma.event.delete({ where: { id: parseInt(req.params.id) } });
+    const eventId = parseInt(req.params.id);
+    
+    // Find all registrations for this event to delete their payments
+    const registrations = await prisma.eventRegistration.findMany({ 
+      where: { eventId }, 
+      select: { id: true } 
+    });
+    const regIds = registrations.map(r => r.id);
+
+    await prisma.$transaction([
+      // 1. Delete payments tied to these registrations
+      prisma.payment.deleteMany({ where: { eventRegId: { in: regIds } } }),
+      // 2. Delete the registrations themselves
+      prisma.eventRegistration.deleteMany({ where: { eventId } }),
+      // 3. Finally, delete the event
+      prisma.event.delete({ where: { id: eventId } })
+    ]);
+
     res.json({ success: true, message: 'Event deleted successfully' });
   } catch (err) {
     console.error(err);

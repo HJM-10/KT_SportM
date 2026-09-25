@@ -29,6 +29,9 @@ class PushService {
       subscription = FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
         try { await _send(token); } catch (error) { debugPrint('Push token update failed: $error'); }
       });
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('Received foreground push notification: ${message.notification?.title}');
+      });
     } catch (error) { debugPrint('Push registration failed: $error'); }
   }
   static Future<void> _send(String? token) => ApiService().dio.post('/notifications/fcm-token', data: {'fcmToken': token});
