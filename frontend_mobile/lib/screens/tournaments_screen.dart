@@ -45,7 +45,49 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
 
   final Set<int> _registeredIds = {};
 
-  Future<void> _register(int tournamentId) async {
+  void _showRegistrationDialog(Map<String, dynamic> t) {
+    final bool isFree = t['fee'] == null || (t['fee'] as num) == 0;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Registration'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Tournament: ${t['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 8),
+              if (!isFree)
+                Text('Fee: Rs. ${t['fee']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+              else
+                const Text('Fee: Free', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text(isFree 
+                ? 'Would you like to register for this tournament?' 
+                : 'To complete your registration, you will be redirected to our secure payment gateway to pay the fee. Your team spot is only confirmed after the payment is verified.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _processRegistration(t['id'] as int);
+              },
+              child: Text(isFree ? 'Confirm' : 'Proceed to Pay'),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  Future<void> _processRegistration(int tournamentId) async {
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
     
@@ -60,7 +102,7 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registered successfully!')),
+          const SnackBar(content: Text('Registration processed successfully!')),
         );
       }
       _fetchTournaments();
@@ -148,12 +190,14 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
                                 ),
                                 if (t['status'] == 'UPCOMING')
                                   ElevatedButton(
-                                    onPressed: _registeredIds.contains(t['id']) ? null : () => _register(t['id']),
+                                    onPressed: _registeredIds.contains(t['id']) ? null : () => _showRegistrationDialog(t as Map<String, dynamic>),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: _registeredIds.contains(t['id']) ? Colors.green : const Color(0xFF6366F1),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                     ),
-                                    child: Text(_registeredIds.contains(t['id']) ? 'Registered' : 'Register'),
+                                    child: Text(_registeredIds.contains(t['id']) 
+                                        ? 'Registered' 
+                                        : (t['fee'] != null && (t['fee'] as num) > 0 ? 'Pay Rs. ${t['fee']}' : 'Register for Free')),
                                   ),
                               ],
                             ),

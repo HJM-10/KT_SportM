@@ -34,7 +34,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
       await _apiService.dio.put('/bookings/$id/confirm');
       _fetchBookings();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to confirm')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to confirm')));
     }
   }
 

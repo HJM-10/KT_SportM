@@ -39,9 +39,9 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
     try {
       await _apiService.dio.delete('/sports/$id');
       _fetchSports();
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sport deleted')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sport deleted')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete sport')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete sport')));
     }
   }
 
@@ -72,10 +72,10 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
                   'icon': iconCtrl.text.isEmpty ? 'sports' : iconCtrl.text,
                   'isActive': true,
                 });
-                Navigator.pop(context);
+                if (mounted) Navigator.pop(context);
                 _fetchSports();
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error adding sport')));
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error adding sport')));
               }
             },
             child: const Text('Add'),

@@ -39,7 +39,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       await _apiService.dio.put('/users/$id/role', data: {'role': newRole});
       _fetchUsers();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update role')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update role')));
     }
   }
 

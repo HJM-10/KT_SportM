@@ -56,7 +56,8 @@ const updateUserRole = async (req, res) => {
     }
     const user = await prisma.user.update({
       where: { id: parseInt(req.params.id) },
-      data: { role }
+      data: { role },
+      select: { id: true, name: true, email: true, phone: true, role: true, isActive: true, createdAt: true }
     });
     res.json({ success: true, message: 'User role updated', data: user });
   } catch (err) {

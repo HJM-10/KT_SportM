@@ -34,7 +34,43 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
   }
 
-  Future<void> _rentEquipment(int eqId, num price) async {
+  void _showRentalDialog(Map<String, dynamic> eq) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Rental'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Equipment: ${eq['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 8),
+              Text('Fee: Rs. ${eq['pricePerSlot']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text('To complete your rental, you will be redirected to our secure payment gateway to pay the fee. Your rental is only confirmed after the payment is verified.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _processRental(eq['id'] as int);
+              },
+              child: const Text('Proceed to Pay'),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  Future<void> _processRental(int eqId) async {
     try {
       final rentalDate = DateTime.now().add(const Duration(hours: 1)).toIso8601String();
       final res = await _apiService.dio.post('/equipment/$eqId/rent', data: {
@@ -45,7 +81,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         if (res.data['data']['paymentId'] != null) await PaymentService.checkout(res.data['data']['paymentId']);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Rental requested! Complete payment to confirm.')),
+          const SnackBar(content: Text('Rental processed successfully!')),
         );
         _fetchEquipment();
       }
@@ -92,8 +128,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: isAvailable ? () => _rentEquipment(eq['id'], eq['pricePerSlot']) : null,
-                          child: const Text('Rent'),
+                          onPressed: isAvailable ? () => _showRentalDialog(eq) : null,
+                          child: Text('Pay Rs. ${eq['pricePerSlot']}'),
                         ),
                       )
                     ],

@@ -34,7 +34,7 @@ class _AdminVenuesScreenState extends State<AdminVenuesScreen> {
       await _apiService.dio.delete('/venues/$id');
       _fetchVenues();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete')));
     }
   }
 

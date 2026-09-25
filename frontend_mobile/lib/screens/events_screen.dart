@@ -36,7 +36,49 @@ class _EventsScreenState extends State<EventsScreen> {
     }
   }
 
-  Future<void> _registerEvent(int eventId) async {
+  void _showRegistrationDialog(Map<String, dynamic> ev) {
+    final bool isFree = ev['fee'] == null || (ev['fee'] as num) == 0;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Confirm Registration'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Event: ${ev['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const SizedBox(height: 8),
+              if (!isFree)
+                Text('Fee: Rs. ${ev['fee']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+              else
+                const Text('Fee: Free', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text(isFree 
+                ? 'Would you like to register for this event?' 
+                : 'To complete your registration, you will be redirected to our secure payment gateway to pay the fee. Your spot is only confirmed after the payment is verified.'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _processRegistration(ev['id'] as int);
+              },
+              child: Text(isFree ? 'Confirm' : 'Proceed to Pay'),
+            ),
+          ],
+        );
+      }
+    );
+  }
+
+  Future<void> _processRegistration(int eventId) async {
     try {
       final res = await _apiService.dio.post('/events/$eventId/register');
       if (res.data['success']) {
@@ -45,7 +87,7 @@ class _EventsScreenState extends State<EventsScreen> {
         }
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registered! Complete payment to confirm your spot.')),
+          const SnackBar(content: Text('Registration processed successfully!')),
         );
         _fetchEvents();
       }
@@ -212,13 +254,15 @@ class _EventsScreenState extends State<EventsScreen> {
                                   SizedBox(
                                     width: double.infinity,
                                     child: ElevatedButton(
-                                      onPressed: isUpcoming ? () => _registerEvent(ev['id'] as int) : null,
+                                      onPressed: isUpcoming ? () => _showRegistrationDialog(ev) : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: isUpcoming ? const Color(0xFF6366F1) : Colors.grey.shade600,
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
                                       child: Text(
-                                        isUpcoming ? 'Register Now' : ev['status'] ?? 'Closed',
+                                        isUpcoming 
+                                          ? (ev['fee'] != null && (ev['fee'] as num) > 0 ? 'Pay Rs. ${ev['fee']}' : 'Register for Free') 
+                                          : ev['status'] ?? 'Closed',
                                         style: const TextStyle(fontWeight: FontWeight.bold),
                                       ),
                                     ),
