@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import useAuthStore from '../store/authStore';
@@ -45,6 +46,7 @@ const EquipmentPage = () => {
     }
   };
 
+  useLiveRefresh('equipment', fetchEquipment);
   useEffect(() => {
     fetchEquipment();
     if (isAdmin) fetchSports();
@@ -62,7 +64,6 @@ const EquipmentPage = () => {
         if (price > 0 && res.data.data.paymentId) {
           setPaymentData({
             paymentId: res.data.data.paymentId,
-            paymentIntentId: res.data.data.clientSecret.split('_secret_')[0],
             amount: price
           });
           setShowPayment(true);

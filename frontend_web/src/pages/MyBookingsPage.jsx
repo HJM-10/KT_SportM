@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Calendar, Clock, MapPin, CalendarCheck } from 'lucide-react';
@@ -59,6 +60,7 @@ const MyBookingsPage = () => {
     }
   };
 
+  useLiveRefresh('bookings', fetchBookings);
   useEffect(() => { fetchBookings(); }, []);
 
   const confirmCancel = (id) => {
@@ -93,7 +95,7 @@ const MyBookingsPage = () => {
         <div className="empty-state">
           <div className="empty-icon"><CalendarCheck size={48} className="text-muted" /></div>
           <div className="empty-title">No Bookings Yet</div>
-          <div className="text-muted">You haven't made any reservations. Use the mobile app to book a slot.</div>
+          <button className="btn btn-primary" onClick={() => navigate('/reserve')}>Book a venue</button>
         </div>
       ) : (
         <div className="grid-3">
@@ -118,9 +120,10 @@ const MyBookingsPage = () => {
               </div>
 
               <div className="flex justify-between items-center mt-16 pt-16" style={{ borderTop: '1px solid var(--border)' }}>
-                <div style={{fontWeight: 700, fontSize: 18}}>${b.totalPrice}</div>
+                <div style={{fontWeight: 700, fontSize: 18}}>Rs. {b.finalPrice}</div>
                 
                 <div className="flex gap-8">
+                  {['CONFIRMED', 'PENDING_PAYMENT'].includes(b.status) && <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/reserve?venueId=${b.slot.venueId}&reschedule=${b.id}`)}>Reschedule</button>}
                   {(() => {
                     const slotDateTime = new Date(`${b.slot.date.split('T')[0]}T${b.slot.startTime}:00`);
                     const now = new Date();
@@ -134,8 +137,7 @@ const MyBookingsPage = () => {
                             <button className="btn btn-success btn-sm" onClick={() => {
                               setPaymentData({
                                 paymentId: b.payment.id,
-                                paymentIntentId: b.payment.stripeClientSecret.split('_secret_')[0],
-                                amount: b.totalPrice
+                                amount: b.finalPrice
                               });
                               setShowPayment(true);
                             }}>

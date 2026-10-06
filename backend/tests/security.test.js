@@ -7,7 +7,10 @@ jest.mock('../src/lib/prisma', () => ({
 }));
 const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
-const token = (role = 'CUSTOMER') => `Bearer ${jwt.sign({ id: 1, role }, process.env.JWT_SECRET)}`;
+const token = (role = 'CUSTOMER') => {
+  prisma.user.findUnique.mockResolvedValue({ id: 1, role, isActive: true });
+  return `Bearer ${jwt.sign({ id: 1, role }, process.env.JWT_SECRET)}`;
+};
 afterEach(() => jest.clearAllMocks());
 test('public registration rejects admin privilege escalation', async () => {
   const result = await request(app).post('/api/auth/register').send({ name: 'Attacker', email: 'attacker@example.com', password: 'password123', role: 'ADMIN' });
@@ -31,8 +34,11 @@ test('checkout enforces payment ownership', async () => {
   expect((await request(app).post('/api/payments/checkout').set('Authorization', token()).send({ paymentId: 7 })).status).toBe(403);
 });
 test('unconfigured Stripe does not pretend to collect money', async () => {
-  prisma.payment.findUnique.mockResolvedValue({ id: 7, userId: 1, status: 'PENDING', amount: 100 });
+  const key = process.env.STRIPE_SECRET_KEY;
+  delete process.env.STRIPE_SECRET_KEY;
+  prisma.payment.findUnique.mockResolvedValue({ id: 7, userId: 1, status: 'PENDING', amount: 100, currency: 'PKR' });
   expect((await request(app).post('/api/payments/checkout').set('Authorization', token()).send({ paymentId: 7 })).status).toBe(503);
+  if (key) process.env.STRIPE_SECRET_KEY = key;
 });
 test('unpaid QR code cannot check in', async () => {
   prisma.booking.findUnique.mockResolvedValue({ id: 5, status: 'PENDING_PAYMENT' });

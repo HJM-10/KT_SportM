@@ -100,10 +100,10 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
                           } else {
                             await _apiService.dio.put('/sports/${sport['id']}', data: data);
                           }
-                          if (mounted) Navigator.pop(context);
+                          if (context.mounted) Navigator.pop(context);
                           _fetchSports();
                         } catch (e) {
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error ${sport == null ? 'adding' : 'editing'} sport')));
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error ${sport == null ? 'adding' : 'editing'} sport')));
                         }
                       },
                       style: ElevatedButton.styleFrom(

@@ -9,7 +9,7 @@ const getAllEquipment = async (req, res) => {
     res.json({ success: true, data: equipment });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -32,7 +32,7 @@ const createEquipment = async (req, res) => {
     res.status(201).json({ success: true, data: eq });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -51,26 +51,26 @@ const updateEquipment = async (req, res) => {
     res.json({ success: true, data: eq });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
 const deleteEquipment = async (req, res) => {
   try {
-    await prisma.equipment.delete({ where: { id: parseInt(req.params.id) } });
-    res.json({ success: true, message: 'Equipment deleted successfully' });
+    await prisma.equipment.update({ where: { id: parseInt(req.params.id) }, data: { isActive: false } });
+    res.json({ success: true, message: 'Equipment deactivated; rental history retained' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
-const { randomUUID: uuidv4 } = require('node:crypto');
 
 const rentEquipment = async (req, res) => {
   try {
     const { quantity, rentalDate, returnDate } = req.body;
     const equipmentId = parseInt(req.params.id);
+    if (!Number.isSafeInteger(Number(quantity)) || Number(quantity) < 1 || !Number.isFinite(Date.parse(rentalDate)) || (returnDate && (!Number.isFinite(Date.parse(returnDate)) || new Date(returnDate) < new Date(rentalDate)))) return res.status(400).json({ success: false, message: 'Positive quantity and valid rental dates are required' });
     
     if (!quantity || !rentalDate) {
       return res.status(400).json({ success: false, message: 'quantity and rentalDate are required' });
@@ -86,6 +86,12 @@ const rentEquipment = async (req, res) => {
     const totalPrice = eq.pricePerSlot * quantity;
 
     const result = await prisma.$transaction(async (tx) => {
+      await tx.equipment.update({ where: { id: equipmentId }, data: { updatedAt: new Date() } });
+      const inventory = await tx.equipment.findUnique({ where: { id: equipmentId } });
+      const start = new Date(new Date(rentalDate).toISOString().slice(0, 10));
+      const end = returnDate ? new Date(new Date(returnDate).toISOString().slice(0, 10)) : start;
+      const reserved = await tx.equipmentRental.aggregate({ where: { equipmentId, status: 'CONFIRMED', rentalDate: { lte: end }, OR: [{ returnDate: { gte: start } }, { returnDate: null, rentalDate: { gte: start } }] }, _sum: { quantity: true } });
+      if (!inventory.isActive || (reserved._sum.quantity || 0) + Number(quantity) > inventory.quantity) throw Object.assign(new Error('Insufficient equipment available for these dates'), { status: 409 });
       const rental = await tx.equipmentRental.create({
         data: {
           userId: req.user.id,
@@ -93,13 +99,10 @@ const rentEquipment = async (req, res) => {
           quantity: parseInt(quantity),
           totalPrice,
           rentalDate: new Date(rentalDate),
-          returnDate: returnDate ? new Date(returnDate) : null,
+          returnDate: end,
           status: 'CONFIRMED'
         }
       });
-
-      const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
-      const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
 
       const payment = await tx.payment.create({
         data: {
@@ -107,13 +110,9 @@ const rentEquipment = async (req, res) => {
           amount: totalPrice,
           purpose: 'EQUIPMENT_RENTAL',
           rentalId: rental.id,
-          stripePaymentIntentId,
-          stripeClientSecret,
-          status: 'PENDING'
+          status: totalPrice === 0 ? 'PAID' : 'PENDING'
         }
       });
-
-      rental.clientSecret = stripeClientSecret;
       rental.paymentId = payment.id;
 
       return rental;
@@ -122,7 +121,7 @@ const rentEquipment = async (req, res) => {
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -136,7 +135,7 @@ const getMyRentals = async (req, res) => {
     res.json({ success: true, data: rentals });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -152,7 +151,7 @@ const getAllRentals = async (req, res) => {
     res.json({ success: true, data: rentals });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 

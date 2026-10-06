@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Calendar, Users, Trophy } from 'lucide-react';
@@ -61,6 +62,7 @@ const TournamentsPage = () => {
     }
   };
 
+  useLiveRefresh('tournaments', fetchTournaments);
   useEffect(() => { 
     fetchTournaments(); 
     if (isAdmin) {
@@ -72,12 +74,11 @@ const TournamentsPage = () => {
   const handleRegister = async (tournamentId) => {
     try {
       const res = await api.post(`/tournaments/${tournamentId}/register`, { teamName: `${user.name}'s Team` });
-      const { paymentId, clientSecret } = res.data.data;
+      const { paymentId } = res.data.data;
       
-      if (paymentId && clientSecret) {
+      if (paymentId) {
         setPaymentData({ 
           paymentId, 
-          paymentIntentId: clientSecret.split('_secret_')[0],
           amount: tournaments.find(t => t.id === tournamentId).entryFee
         });
         setShowPayment(true);

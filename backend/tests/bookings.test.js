@@ -4,6 +4,8 @@ const prisma = require('../src/lib/prisma');
 const jwt = require('jsonwebtoken');
 
 jest.mock('../src/lib/prisma', () => ({
+  user: { findUnique: jest.fn().mockResolvedValue({ id: 1, role: 'ADMIN', isActive: true }) },
+  venue: { update: jest.fn().mockResolvedValue({ id: 1 }) },
   bookingSlot: {
     findMany: jest.fn(),
     create: jest.fn(),
@@ -19,6 +21,7 @@ jest.mock('../src/lib/prisma', () => ({
 const mockToken = jwt.sign({ id: 1, role: 'ADMIN' }, process.env.JWT_SECRET || 'secret');
 
 describe('Bookings API', () => {
+  beforeEach(() => prisma.$transaction.mockImplementation(fn => fn(prisma)));
   afterEach(() => {
     jest.clearAllMocks();
   });

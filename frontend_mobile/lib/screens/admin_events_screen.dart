@@ -110,7 +110,7 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
                       ),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
-                        value: selectedSportId,
+                        initialValue: selectedSportId,
                         items: sports.map((s) => DropdownMenuItem<int>(
                           value: s['id'],
                           child: Text(s['name']),
@@ -182,10 +182,10 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
                                 } else {
                                   await _apiService.dio.put('/events/${event['id']}', data: data);
                                 }
-                                if (mounted) Navigator.pop(context);
+                                if (context.mounted) Navigator.pop(context);
                                 _fetchEvents();
                               } catch (e) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error ${event == null ? 'adding' : 'editing'} event')));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error ${event == null ? 'adding' : 'editing'} event')));
                               }
                             },
                             style: ElevatedButton.styleFrom(

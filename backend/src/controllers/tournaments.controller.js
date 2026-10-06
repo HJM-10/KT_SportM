@@ -24,7 +24,7 @@ const getTournaments = async (req, res) => {
     res.json({ success: true, data: tournaments });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -42,7 +42,7 @@ const getTournamentById = async (req, res) => {
     res.json({ success: true, data: tournament });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -68,7 +68,7 @@ const createTournament = async (req, res) => {
     res.status(201).json({ success: true, data: tournament });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -82,7 +82,7 @@ const updateTournament = async (req, res) => {
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
         maxTeams: maxTeams ? parseInt(maxTeams) : undefined,
-        entryFee: entryFee ? parseFloat(entryFee) : undefined,
+        entryFee: entryFee !== undefined ? parseFloat(entryFee) : undefined,
         imageUrl
       },
       include: { sport: { select: { id: true, name: true } } }
@@ -91,13 +91,15 @@ const updateTournament = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Tournament not found' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
 const deleteTournament = async (req, res) => {
   try {
     const tournamentId = parseInt(req.params.id);
+    const registrationCount = await prisma.teamRegistration.count({ where: { tournamentId } });
+    if (registrationCount > 0) return res.status(409).json({ success: false, message: 'Tournament has registrations. Retain it to preserve payment and match history.' });
     
     await prisma.$transaction(async (tx) => {
       // Find registrations for this tournament
@@ -134,11 +136,10 @@ const deleteTournament = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Tournament not found' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
-const { randomUUID: uuidv4 } = require('node:crypto');
 
 const registerForTournament = async (req, res) => {
   try {
@@ -162,6 +163,10 @@ const registerForTournament = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      await tx.tournament.update({ where: { id: tournamentId }, data: { updatedAt: new Date() } });
+      const current = await tx.tournament.findUnique({ where: { id: tournamentId } });
+      const count = await tx.teamRegistration.count({ where: { tournamentId } });
+      if (current.status !== 'UPCOMING' || count >= current.maxTeams) throw Object.assign(new Error('Tournament registration is closed or full'), { status: 409 });
       const reg = await tx.teamRegistration.create({
         data: { 
           tournamentId, 
@@ -172,8 +177,6 @@ const registerForTournament = async (req, res) => {
       });
 
       if (tournament.entryFee > 0) {
-        const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
-        const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
 
         const payment = await tx.payment.create({
           data: {
@@ -181,12 +184,9 @@ const registerForTournament = async (req, res) => {
             amount: tournament.entryFee,
             purpose: 'TOURNAMENT_REGISTRATION',
             tournamentRegId: reg.id,
-            stripePaymentIntentId,
-            stripeClientSecret,
             status: 'PENDING'
           }
         });
-        reg.clientSecret = stripeClientSecret;
         reg.paymentId = payment.id;
       }
 
@@ -199,7 +199,7 @@ const registerForTournament = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Already registered for this tournament' });
     }
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -248,7 +248,7 @@ const manualRegister = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2002') return res.status(409).json({ success: false, message: 'User is already registered for this tournament' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 

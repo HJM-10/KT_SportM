@@ -37,6 +37,9 @@ app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), req
 app.use(express.json({ limit: '100kb' }));
 app.use(morgan('dev'));
 
+// The payment provider redirects here without the customer's bearer token.
+app.get('/api/payments/return', (req, res) => res.type('text').send('Return to Smart Sports Hub and refresh your payments. Confirmation is recorded after the payment provider verifies the transaction.'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
@@ -52,6 +55,18 @@ app.use('/api/auth', authRoutes);
 
 // Apply authentication middleware globally for all subsequent API routes
 app.use('/api', authenticate);
+app.use('/api', require('./middleware/businessValidation'));
+app.use('/api', (req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    const resource = req.path.split('/')[1];
+    res.once('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        try { require('./lib/socket').getIO().emit('resource_changed', { resource }); } catch {}
+      }
+    });
+  }
+  next();
+});
 
 app.use('/api/sports', sportsRoutes);
 app.use('/api/venues', venuesRoutes);

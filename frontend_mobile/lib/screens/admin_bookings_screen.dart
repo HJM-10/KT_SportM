@@ -31,8 +31,14 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
   }
 
   Future<void> _confirmBooking(int id) async {
+    final received = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(
+      title: const Text('Record payment received'),
+      content: const Text('Confirm only after collecting the full payment in person.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Money received'))],
+    ));
+    if (received != true) return;
     try {
-      await _apiService.dio.put('/bookings/$id/confirm');
+      await _apiService.dio.put('/bookings/$id/confirm', data: {'receivedInPerson': true});
       _fetchBookings();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to confirm')));

@@ -20,7 +20,8 @@ const submitComplaint = async (req, res) => {
     });
     
     // Notify admin
-    await createNotification(1, 'New Complaint', `A new complaint has been filed: ${title}`, 'COMPLAINT');
+    const admins = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { id: true } });
+    await Promise.all(admins.map(admin => createNotification(admin.id, 'New Complaint', `A new complaint has been filed: ${title}`, 'COMPLAINT')));
 
     res.status(201).json({ success: true, data: complaint });
     try { socket.getIO().emit('complaint_updated', {}); } catch (e) {}

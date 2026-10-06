@@ -9,5 +9,6 @@ router.put('/:id', authenticate, requireAdmin, updateTournament);
 router.delete('/:id', authenticate, requireAdmin, deleteTournament);
 router.post('/:id/register', authenticate, registerForTournament);
 router.post('/:id/manual-register', authenticate, requireAdmin, manualRegister);
+router.post('/:id/fixtures', authenticate, requireAdmin, require('../controllers/fixtures.controller').generate);
 
 module.exports = router;

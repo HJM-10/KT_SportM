@@ -8,8 +8,9 @@ router.use(authenticate);
 router.post('/checkout', require('../controllers/checkout.controller').checkout);
 
 router.post('/initiate', initiatePayment);
-router.post('/confirm', confirmPayment);
+router.post('/confirm', requireAdmin, confirmPayment);
 router.get('/my', getMyPayments);
+router.get('/:id/invoice', require('../controllers/invoice.controller').invoice);
 router.get('/', requireAdmin, getAllPayments);
 
 module.exports = router;

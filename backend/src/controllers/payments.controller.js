@@ -8,6 +8,7 @@ const initiatePayment = async (req, res) => {
 
 const confirmPayment = async (req, res) => {
   try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ success: false, message: 'Admin access required' });
     const { paymentId } = req.body;
     if (!Number.isSafeInteger(Number(paymentId)) || Number(paymentId) < 1) return res.status(400).json({ success: false, message: 'Valid paymentId required' });
     
@@ -23,25 +24,23 @@ const confirmPayment = async (req, res) => {
     }
     if (payment.status === 'PAID') return res.status(400).json({ success: false, message: 'Payment already processed' });
     
-    // In a real app, verify with Stripe that paymentIntentId succeeded.
-    // Here we just mark it as PAID.
-    const updatedPayment = await prisma.payment.update({
-      where: { id: payment.id },
-      data: { status: 'PAID' }
+    if (req.body.receivedInPerson !== true) return res.status(400).json({ success: false, message: 'Explicit confirmation of money received in person is required' });
+    if (payment.stripePaymentIntentId && !payment.stripePaymentIntentId.startsWith('pi_dummy_')) return res.status(409).json({ success: false, message: 'Online payments must be reconciled with the provider' });
+    const updatedPayment = await prisma.$transaction(async tx => {
+      const claimed = await tx.payment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'PAID', stripePaymentIntentId: null, stripeClientSecret: null } });
+      if (!claimed.count) throw Object.assign(new Error('Payment changed; refresh and retry'), { status: 409 });
+      if (payment.bookingId) {
+        const changed = await tx.booking.updateMany({ where: { id: payment.bookingId, status: 'PENDING_PAYMENT' }, data: { status: 'CONFIRMED' } });
+        if (!changed.count) throw Object.assign(new Error('Booking changed; refresh and retry'), { status: 409 });
+      }
+      if (payment.membershipId) await tx.membership.update({ where: { id: payment.membershipId }, data: { isActive: true } });
+      return tx.payment.findUnique({ where: { id: payment.id } });
     });
 
     // Handle post-payment logic based on purpose
     if (payment.purpose === 'BOOKING' && payment.bookingId) {
-      await prisma.booking.update({
-        where: { id: payment.bookingId },
-        data: { status: 'CONFIRMED' }
-      });
       await createNotification(payment.userId, 'Booking Confirmed', `Your payment of Rs. ${payment.amount} was successful and your booking is confirmed.`, 'BOOKING');
     } else if (payment.purpose === 'MEMBERSHIP' && payment.membershipId) {
-      await prisma.membership.update({
-        where: { id: payment.membershipId },
-        data: { isActive: true }
-      });
       await createNotification(payment.userId, 'Membership Activated', `Your membership has been activated.`, 'PAYMENT');
     } else if (payment.purpose === 'TOURNAMENT_REGISTRATION' && payment.tournamentRegId) {
        // Registration is already created, payment is just marked PAID.
@@ -59,7 +58,7 @@ const confirmPayment = async (req, res) => {
     res.json({ success: true, data: updatedPayment });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 

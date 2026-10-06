@@ -39,7 +39,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen> {
           final p = _payments[index];
           return ListTile(
             leading: const Icon(Icons.attach_money, color: Colors.green),
-            title: Text('\$${p['amount']}'),
+            title: Text('Rs. ${p['amount']}'),
             subtitle: Text('Status: ${p['status']}'),
             trailing: Text(p['paymentMethod'] ?? 'Unknown'),
           );

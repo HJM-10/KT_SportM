@@ -475,3 +475,132 @@ tr:hover td { background: var(--bg-card-hover); }
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
 .empty-icon { font-size: 48px; margin-bottom: 12px; }
 .empty-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+
+/* Shared layouts must remain usable on phones and with large text. */
+.main-content, .page-content, .card { min-width: 0; }
+.flex-col { display: flex; }
+.flex { flex-wrap: wrap; }
+.modal { max-height: calc(100dvh - 48px); overflow-y: auto; }
+button:focus-visible, a:focus-visible { outline: 3px solid var(--primary-light); outline-offset: 3px; }
+.form-label .form-input { margin-top: 8px; }
+.form-label { display: block; }
+.form-label .form-input { display: block; width: 100%; }
+.overflow-x-auto { overflow-x: auto; }
+.w-full { width: 100%; }
+.text-left { text-align: left; }
+.text-sm { font-size: 14px; }
+.text-xs { font-size: 12px; }
+.font-bold { font-weight: 700; }
+.p-4 { padding: 16px; }
+.p-6 { padding: 24px; }
+.p-8 { padding: 32px; }
+.px-6 { padding-left: 24px; padding-right: 24px; }
+.py-4 { padding-top: 16px; padding-bottom: 16px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; }
+.mb-4 { margin-bottom: 16px; }
+.mb-8 { margin-bottom: 32px; }
+.mt-24 { margin-top: 24px; }
+.mt-16 { margin-top: 16px; }
+.pt-16 { padding-top: 16px; }
+.text-white { color: var(--text); }
+.text-gray-300, .text-gray-400, .text-gray-500 { color: var(--text-muted); }
+.text-transparent { color: var(--text); }
+.text-3xl { font-size: 28px; }
+.fixed { position: fixed; }
+.inset-0 { inset: 0; }
+.z-50 { z-index: 1000; }
+.max-w-md { max-width: 480px; }
+.justify-center { justify-content: center; }
+.justify-end { justify-content: flex-end; }
+.rounded-xl { border-radius: 16px; }
+[class~="bg-black/80"] { background: rgba(0, 0, 0, .8); }
+[class~="bg-[#1a1a2e]"] { background: var(--bg-card); }
+.space-y-4 > * + * { margin-top: 16px; }
+.form-control, .form-select { width: 100%; padding: 12px; background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; }
+@media print {
+  .sidebar, .page-header, .table-wrapper, .modal button { display: none !important; }
+  .modal-overlay { position: static; padding: 0; background: white; }
+  .modal { max-height: none; border: none; box-shadow: none; color: black; background: white; }
+  .main-content { margin: 0; }
+  .invoice { color: black; }
+}
+@media (max-width: 760px) {
+  .app-layout { flex-direction: column; }
+  .sidebar { position: relative; width: 100%; height: auto; }
+  .sidebar-logo { padding: 16px; }
+  .sidebar-nav { flex-direction: row; overflow-x: auto; flex-wrap: nowrap; padding: 8px; }
+  .sidebar-section-title { display: none; }
+  .nav-item { flex-shrink: 0; white-space: nowrap; }
+  .sidebar-footer { padding: 12px 16px; }
+  .main-content { margin-left: 0; }
+  .page-content { padding: 20px 16px; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .stat-card { padding: 12px; flex-wrap: wrap; }
+  .page-header { flex-wrap: wrap; gap: 12px; }
+  .modal { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  button:hover, button:active, input:focus { transform: none !important; }
+}
+
+/* One shared form structure: labels on the left, aligned controls on the right. */
+.form-panel { width: 100%; max-width: 960px; }
+.page-content { --form-label-width: 200px; }
+.page-content .form-group,
+.page-content form div:has(> label):has(> :is(input, select, textarea)) {
+  display: grid;
+  grid-template-columns: var(--form-label-width) minmax(0, 1fr);
+  align-items: start;
+  gap: 12px 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.page-content .form-group:last-of-type { border-bottom: 0; }
+.page-content .form-group > label,
+.page-content form div:has(> label):has(> :is(input, select, textarea)) > label {
+  padding-top: 11px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.form-field-control { min-width: 0; }
+.page-content :is(.form-input, .form-select, .form-control),
+.page-content .form-group :is(input, select, textarea) {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.form-hint { font-size: 12px; line-height: 1.5; color: var(--text-muted); margin-top: 8px; }
+.form-footer { display: flex; justify-content: flex-end; padding-top: 16px; margin-top: 4px; border-top: 1px solid var(--border); gap: 12px; }
+.form-section-title { font-size: 18px; font-weight: 600; }
+.page-content .modal-form { gap: 0; }
+.modal { --form-label-width: 150px; }
+.modal .grid-2 { grid-template-columns: 1fr; gap: 0; }
+.page-content > div > .grid-2 .card { --form-label-width: 150px; }
+@media (max-width: 1100px) {
+  .page-content > div > .grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .page-content .form-group,
+  .page-content form div:has(> label):has(> :is(input, select, textarea)) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding: 14px 0;
+  }
+  .page-content .form-group > label,
+  .page-content form div:has(> label):has(> :is(input, select, textarea)) > label { padding-top: 0; }
+  .form-footer .btn { flex: 1; justify-content: center; white-space: normal; }
+}

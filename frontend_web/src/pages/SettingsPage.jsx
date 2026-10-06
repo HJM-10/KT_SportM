@@ -7,7 +7,7 @@ import { User, Lock, Save } from 'lucide-react';
 
 const SettingsPage = () => {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-  const { user, setAuth } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   
   // Profile State
   const [profileForm, setProfileForm] = useState({
@@ -42,7 +42,7 @@ const SettingsPage = () => {
     setProfileLoading(true);
     try {
       const res = await api.put('/auth/me', profileForm);
-      setAuth(res.data.data, localStorage.getItem('token'));
+      updateUser(res.data.data);
       toast.success('Profile updated successfully');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update profile');

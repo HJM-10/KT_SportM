@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -8,7 +9,11 @@ class ComplaintsScreen extends StatefulWidget {
   State<ComplaintsScreen> createState() => _ComplaintsScreenState();
 }
 
-class _ComplaintsScreenState extends State<ComplaintsScreen> {
+class _ComplaintsScreenState extends State<ComplaintsScreen> with LiveRefresh<ComplaintsScreen> {
+  @override
+  List<String> get liveResources => ['complaints'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchComplaints();
   final ApiService _apiService = ApiService();
   List<dynamic> _complaints = [];
   bool _isLoading = true;

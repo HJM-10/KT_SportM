@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
@@ -13,7 +14,11 @@ class TournamentsScreen extends StatefulWidget {
   State<TournamentsScreen> createState() => _TournamentsScreenState();
 }
 
-class _TournamentsScreenState extends State<TournamentsScreen> {
+class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<TournamentsScreen> {
+  @override
+  List<String> get liveResources => ['tournaments'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchTournaments();
   final ApiService _apiService = ApiService();
   List<dynamic> _tournaments = [];
   bool _isLoading = true;
@@ -46,7 +51,7 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
   final Set<int> _registeredIds = {};
 
   void _showRegistrationDialog(Map<String, dynamic> t) {
-    final bool isFree = t['fee'] == null || (t['fee'] as num) == 0;
+    final bool isFree = t['entryFee'] == null || (t['entryFee'] as num) == 0;
     showDialog(
       context: context,
       builder: (context) {
@@ -60,7 +65,7 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
               Text('Tournament: ${t['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               const SizedBox(height: 8),
               if (!isFree)
-                Text('Fee: Rs. ${t['fee']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
+                Text('Fee: Rs. ${t['entryFee']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
               else
                 const Text('Fee: Free', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
@@ -197,7 +202,7 @@ class _TournamentsScreenState extends State<TournamentsScreen> {
                                     ),
                                     child: Text(_registeredIds.contains(t['id']) 
                                         ? 'Registered' 
-                                        : (t['fee'] != null && (t['fee'] as num) > 0 ? 'Pay Rs. ${t['fee']}' : 'Register for Free')),
+                                        : (t['entryFee'] != null && (t['entryFee'] as num) > 0 ? 'Pay Rs. ${t['entryFee']}' : 'Register for Free')),
                                   ),
                               ],
                             ),

@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Plus, Edit2, Trash2, Activity } from 'lucide-react';
@@ -29,6 +30,7 @@ const SportsPage = () => {
     }
   };
 
+  useLiveRefresh('sports', fetchSports);
   useEffect(() => { fetchSports(); }, []);
 
   const handleSubmit = async (e) => {

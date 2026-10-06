@@ -64,9 +64,12 @@ const createMatch = async (req, res) => {
 const updateMatchResult = async (req, res) => {
   try {
     const { result, team1Score, team2Score, winner, isCompleted } = req.body;
+    const current = await prisma.match.findUnique({ where: { id: Number(req.params.id) } });
+    if (!current) return res.status(404).json({ success: false, message: 'Match not found' });
+    if (winner && !['team1', 'team2', 'draw', current.team1, current.team2].includes(winner)) return res.status(400).json({ success: false, message: 'Winner must be one of the competing teams or draw' });
     const match = await prisma.match.update({
       where: { id: parseInt(req.params.id) },
-      data: { result, team1Score, team2Score, winner, isCompleted: isCompleted ?? true },
+      data: { result, team1Score: team1Score == null ? undefined : String(team1Score), team2Score: team2Score == null ? undefined : String(team2Score), winner, isCompleted: isCompleted ?? true },
       include: { tournament: { select: { id: true, name: true } } }
     });
     res.json({ success: true, data: match });

@@ -10,6 +10,7 @@ const getSlots = async (req, res) => {
       return res.status(400).json({ success: false, message: 'venueId and date are required' });
     }
     const targetDate = new Date(date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(targetDate.getTime()) || targetDate.toISOString().slice(0, 10) !== date || !Number.isSafeInteger(Number(venueId)) || Number(venueId) < 1) return res.status(400).json({ success: false, message: 'Valid venueId and YYYY-MM-DD date are required' });
     let slots = await prisma.bookingSlot.findMany({
       where: {
         venueId: parseInt(venueId),
@@ -17,24 +18,6 @@ const getSlots = async (req, res) => {
       },
       orderBy: { startTime: 'asc' }
     });
-
-    if (slots.length === 0) {
-      const newSlots = [];
-      for (let i = 9; i <= 21; i++) {
-        newSlots.push({
-          venueId: parseInt(venueId),
-          date: targetDate,
-          startTime: `${i.toString().padStart(2, '0')}:00`,
-          endTime: `${(i + 1).toString().padStart(2, '0')}:00`,
-          isBooked: false
-        });
-      }
-      await prisma.bookingSlot.createMany({ data: newSlots });
-      slots = await prisma.bookingSlot.findMany({
-        where: { venueId: parseInt(venueId), date: targetDate },
-        orderBy: { startTime: 'asc' }
-      });
-    }
 
     res.json({ success: true, data: slots });
   } catch (err) {
@@ -50,21 +33,11 @@ const createSlot = async (req, res) => {
       return res.status(400).json({ success: false, message: 'venueId, date, startTime, endTime are required' });
     }
     
-    // Check for overlapping slots
-    const existingSlots = await prisma.bookingSlot.findMany({
-      where: { venueId: parseInt(venueId), date: new Date(date) }
-    });
-    
-    const isOverlap = existingSlots.some(slot => {
-      return (startTime < slot.endTime && endTime > slot.startTime);
-    });
-    
-    if (isOverlap) {
-      return res.status(409).json({ success: false, message: 'Time slot overlaps with an existing slot' });
-    }
-
-    const slot = await prisma.bookingSlot.create({
-      data: { venueId: parseInt(venueId), date: new Date(date), startTime, endTime }
+    const slot = await prisma.$transaction(async tx => {
+      await tx.venue.update({ where: { id: parseInt(venueId) }, data: { updatedAt: new Date() } });
+      const existingSlots = await tx.bookingSlot.findMany({ where: { venueId: parseInt(venueId), date: new Date(date) } });
+      if (existingSlots.some(slot => startTime < slot.endTime && endTime > slot.startTime)) throw Object.assign(new Error('Time slot overlaps with an existing slot'), { status: 409 });
+      return tx.bookingSlot.create({ data: { venueId: parseInt(venueId), date: new Date(date), startTime, endTime } });
     });
     res.status(201).json({ success: true, data: slot });
   } catch (err) {
@@ -128,10 +101,11 @@ const createBooking = async (req, res) => {
     // Check slot availability
     const slot = await prisma.bookingSlot.findUnique({ where: { id: parseInt(slotId) }, include: { venue: true } });
     if (!slot) return res.status(404).json({ success: false, message: 'Slot not found' });
+    if (!slot.venue.isActive) return res.status(409).json({ success: false, message: 'Venue is unavailable' });
     if (slot.isBooked) return res.status(409).json({ success: false, message: 'Slot already booked' });
 
     // Check if slot is in the past
-    const slotDateTime = new Date(`${slot.date.toISOString().split('T')[0]}T${slot.startTime}:00`);
+    const slotDateTime = new Date(`${slot.date.toISOString().split('T')[0]}T${slot.startTime}:00+05:00`);
     if (slotDateTime < new Date()) {
       return res.status(400).json({ success: false, message: 'Cannot book a slot in the past' });
     }
@@ -143,7 +117,7 @@ const createBooking = async (req, res) => {
     let promoCodeId = null;
 
     // Membership logic
-    const membership = await prisma.membership.findUnique({ where: { userId: req.user.id } });
+    const membership = walkInName ? null : await prisma.membership.findUnique({ where: { userId: req.user.id } });
     if (membership && membership.isActive && (!membership.endDate || membership.endDate > new Date())) {
       if (membership.tier === 'SILVER') membershipDiscount = basePrice * 0.10;
       if (membership.tier === 'GOLD') membershipDiscount = basePrice * 0.20;
@@ -164,10 +138,12 @@ const createBooking = async (req, res) => {
           promoCodeId = promo.id;
         }
       }
+      if (!promoCodeId) return res.status(400).json({ success: false, message: 'Promo code is invalid, expired, exhausted or below its minimum order value' });
     }
     
     finalPrice -= promoDiscount;
     if (finalPrice < 0) finalPrice = 0;
+    finalPrice = Number(finalPrice.toFixed(2));
 
     let targetUserId = req.user.id;
     let targetBookingStatus = 'PENDING_PAYMENT';
@@ -225,27 +201,23 @@ const createBooking = async (req, res) => {
       b.qrCode = qrCode;
       
       if (promoCodeId) {
+         await tx.promoCode.update({ where: { id: promoCodeId }, data: { updatedAt: new Date() } });
+         const currentPromo = await tx.promoCode.findUnique({ where: { id: promoCodeId } });
+         if (!currentPromo.isActive || (currentPromo.expiresAt && currentPromo.expiresAt <= new Date()) || (currentPromo.maxUses && currentPromo.usedCount >= currentPromo.maxUses)) throw Object.assign(new Error('Promo code is no longer available'), { status: 409 });
          await tx.promoCode.update({ where: { id: promoCodeId }, data: { usedCount: { increment: 1 } } });
          await tx.promoCodeUsage.create({ data: { promoCodeId, userId: targetUserId, bookingId: b.id } });
       }
-
-      // Create Payment Record (Dummy Stripe)
-      const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
-      const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
+      // Provider references are written only after a verified provider transaction.
       
       const payment = await tx.payment.create({
         data: {
           userId: targetUserId,
           amount: finalPrice,
           purpose: 'BOOKING',
-          stripePaymentIntentId,
-          stripeClientSecret,
           bookingId: b.id,
           status: finalPrice === 0 ? 'PAID' : 'PENDING'
         }
       });
-
-      b.clientSecret = stripeClientSecret;
       b.paymentId = payment.id;
 
       return b;
@@ -274,7 +246,7 @@ const cancelBooking = async (req, res) => {
     }
 
     const slotDateStr = booking.slot.date.toISOString().split('T')[0];
-    const slotDateTime = new Date(`${slotDateStr}T${booking.slot.startTime}:00`);
+    const slotDateTime = new Date(`${slotDateStr}T${booking.slot.startTime}:00+05:00`);
     const now = new Date();
     const hoursDifference = (slotDateTime - now) / (1000 * 60 * 60);
 
@@ -332,9 +304,10 @@ const scanBooking = async (req, res) => {
     if (booking.status === 'SCANNED') return res.status(400).json({ success: false, message: 'Booking already used' });
     if (booking.status !== 'CONFIRMED') return res.status(400).json({ success: false, message: 'Payment must be confirmed before check-in' });
 
-    const updated = await prisma.booking.update({
+    const changed = await prisma.booking.updateMany({ where: { id: booking.id, status: 'CONFIRMED' }, data: { status: 'SCANNED' } });
+    if (!changed.count) return res.status(409).json({ success: false, message: 'Booking already checked in or changed' });
+    const updated = await prisma.booking.findUnique({
       where: { id: booking.id },
-      data: { status: 'SCANNED' },
       include: {
         user: { select: { id: true, name: true, email: true } },
         slot: { include: { venue: { include: { sport: { select: { name: true } } } } } }
@@ -351,24 +324,10 @@ const scanBooking = async (req, res) => {
 
 const confirmBooking = async (req, res) => {
   try {
-    const booking = await prisma.booking.findUnique({ where: { id: parseInt(req.params.id) } });
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-    
-    if (booking.status !== 'PENDING_PAYMENT') {
-      return res.status(400).json({ success: false, message: 'Booking is already confirmed or scanned' });
-    }
-
-    const updated = await prisma.booking.update({
-      where: { id: booking.id },
-      data: { status: 'CONFIRMED' },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        slot: { include: { venue: { include: { sport: { select: { name: true } } } } } }
-      }
-    });
-
-    res.json({ success: true, message: 'Booking manually confirmed', data: updated });
-    try { socket.getIO().emit('booking_updated', { slotId: updated.slotId }); } catch (e) {}
+    const payment = await prisma.payment.findUnique({ where: { bookingId: parseInt(req.params.id) } });
+    if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
+    req.body.paymentId = payment.id;
+    return require('./payments.controller').confirmPayment(req, res);
   } catch (err) {
     console.error(err);
     res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });

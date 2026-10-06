@@ -17,8 +17,10 @@ const Sidebar = () => {
     ? [
         { to: '/', icon: <LayoutDashboard />, label: 'Dashboard' },
         { to: '/sports', icon: <Dumbbell />, label: 'Sports' },
+        { to: '/reserve', icon: <CalendarCheck />, label: 'Book a Venue' },
         { to: '/tournaments', icon: <Trophy />, label: 'Tournaments' },
         { to: '/matches', icon: <Swords />, label: 'Matches' },
+        { to: '/fixtures', icon: <Swords />, label: 'Generate Fixtures' },
         { to: '/bookings', icon: <CalendarCheck />, label: 'Bookings' },
         { to: '/venues', icon: <Building2 />, label: 'Venues' },
         { to: '/events', icon: <CalendarCheck />, label: 'Events' },
@@ -33,11 +35,15 @@ const Sidebar = () => {
     : [
         { to: '/', icon: <LayoutDashboard />, label: 'Dashboard' },
         { to: '/sports', icon: <Dumbbell />, label: 'Sports' },
+        { to: '/reserve', icon: <CalendarCheck />, label: 'Book a Venue' },
         { to: '/tournaments', icon: <Trophy />, label: 'Tournaments' },
         { to: '/matches', icon: <Swords />, label: 'Matches' },
         { to: '/events', icon: <CalendarCheck />, label: 'Events' },
         { to: '/equipment', icon: <Dumbbell />, label: 'Equipment' },
         { to: '/my-bookings', icon: <CalendarCheck />, label: 'My Bookings' },
+        { to: '/membership', icon: <Star />, label: 'Membership' },
+        { to: '/payments', icon: <CalendarCheck />, label: 'Payments and Invoices' },
+        { to: '/notifications', icon: <CalendarCheck />, label: 'Notifications' },
         { to: '/complaints', icon: <Settings />, label: 'Complaints' },
         { to: '/settings', icon: <Settings />, label: 'Settings' },
       ];

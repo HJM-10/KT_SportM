@@ -10,13 +10,12 @@ async function settle(session) {
     if (!payment || session.amount_total !== Math.round(payment.amount * 100) || session.currency !== payment.currency.toLowerCase()) throw new Error('Payment amount or currency mismatch');
     if (payment.status === 'PAID') return;
     if (payment.status !== 'PENDING') throw new Error('Payment is no longer pending');
-    if (payment.bookingId) {
-      const booking = await tx.booking.findUnique({ where: { id: payment.bookingId } });
-      if (!booking || booking.status !== 'PENDING_PAYMENT') throw new Error('Booking requires payment reconciliation');
-      await tx.booking.update({ where: { id: booking.id }, data: { status: 'CONFIRMED' } });
-    }
     const claimed = await tx.payment.updateMany({ where: { id, status: 'PENDING' }, data: { status: 'PAID', stripePaymentIntentId: session.payment_intent } });
     if (!claimed.count) return;
+    if (payment.bookingId) {
+      const changed = await tx.booking.updateMany({ where: { id: payment.bookingId, status: 'PENDING_PAYMENT' }, data: { status: 'CONFIRMED' } });
+      if (!changed.count) throw new Error('Booking requires payment reconciliation');
+    }
     if (payment.membershipId) await tx.membership.update({ where: { id: payment.membershipId }, data: { isActive: true } });
     await tx.notification.create({ data: { userId: payment.userId, title: 'Payment received', body: `Payment #${id} of ${payment.currency} ${payment.amount} was received.`, type: 'PAYMENT' } });
   });
@@ -31,6 +30,11 @@ async function checkout(req, res, next) {
     if (payment.userId !== req.user.id) return res.status(403).json({ success: false, message: 'Not authorized' });
     if (payment.status !== 'PENDING') return res.status(409).json({ success: false, message: 'Payment is not pending' });
     if (payment.amount <= 0) return res.status(400).json({ success: false, message: 'No payment is due' });
+    if (!process.env.STRIPE_WEBHOOK_SECRET) return res.status(503).json({ success: false, message: 'Verified online payments are not configured. Contact arena staff to pay in person.' });
+    if (payment.bookingId) {
+      const booking = await prisma.booking.findUnique({ where: { id: payment.bookingId } });
+      if (!booking || booking.status !== 'PENDING_PAYMENT') return res.status(409).json({ success: false, message: 'Booking no longer awaits payment' });
+    }
     const origin = process.env.PUBLIC_API_URL || 'http://localhost:5000';
     const session = await getStripe().checkout.sessions.create({
       mode: 'payment',

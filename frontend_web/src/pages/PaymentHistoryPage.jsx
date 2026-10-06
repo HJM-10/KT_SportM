@@ -1,0 +1,19 @@
+import useLiveRefresh from '../services/useLiveRefresh';
+import { useEffect, useState } from 'react';
+import api from '../api/axios';
+import toast from 'react-hot-toast';
+import PaymentModal from '../components/PaymentModal';
+import useAuthStore from '../store/authStore';
+export default function PaymentHistoryPage() {
+  const isAdmin = useAuthStore(s => s.user?.role === 'ADMIN');
+  const [payments, setPayments] = useState([]), [invoice, setInvoice] = useState(null), [checkout, setCheckout] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => api.get(isAdmin ? '/payments' : '/payments/my').then(r => setPayments(r.data.data)).catch(() => toast.error('Could not load payments'));
+  useLiveRefresh('payments', load);
+  useEffect(() => { load(); }, [isAdmin]);
+  const showInvoice = async id => { try { const r = await api.get(`/payments/${id}/invoice`); setInvoice(r.data.data); } catch { toast.error('Could not load invoice'); } };
+  const cash = async id => { setBusy(true); try { await api.post('/payments/confirm', { paymentId: id, receivedInPerson: true }); toast.success('Payment received in person recorded'); load(); } catch (e) { toast.error(e.response?.data?.message || 'Could not record payment'); } finally { setBusy(false); } };
+  return <div><div className="page-header"><h1 className="page-title">Payments and invoices</h1><button className="btn btn-secondary" onClick={load}>Refresh</button></div><div className="table-wrapper"><table><thead><tr><th>Reference</th><th>Purpose</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody>{payments.map(p => <tr key={p.id}><td>#{p.id}{isAdmin && <p>{p.user?.name}</p>}</td><td>{p.purpose.replaceAll('_', ' ')}</td><td>{p.currency} {p.amount}</td><td>{p.status}</td><td><div className="flex gap-8"><button className="btn btn-secondary btn-sm" onClick={() => showInvoice(p.id)}>Invoice</button>{!isAdmin && p.status === 'PENDING' && <button className="btn btn-primary btn-sm" onClick={() => setCheckout({ paymentId: p.id, amount: p.amount })}>Pay online</button>}{isAdmin && p.status === 'PENDING' && <button className="btn btn-secondary btn-sm" disabled={busy} onClick={() => setInvoice({ confirmPaymentId: p.id })}>Record cash</button>}</div></td></tr>)}</tbody></table>{!payments.length && <p className="empty-state">No payments found.</p>}</div>
+    {invoice && <div className="modal-overlay"><section className="modal" role="dialog" aria-modal="true" aria-label="Invoice">{invoice.confirmPaymentId ? <><h2>Confirm payment received</h2><p>Record only money actually received in person. This updates the payment and its booking.</p><button className="btn btn-primary" disabled={busy} onClick={async () => { await cash(invoice.confirmPaymentId); setInvoice(null); }}>Money received</button></> : <div className="invoice"><h2>Smart Sports Hub</h2><h3>Invoice {invoice.invoiceNumber}</h3><p>{invoice.customer.name} · {invoice.customer.email}</p><p>{new Date(invoice.issuedAt).toLocaleString()}</p><p>{invoice.purpose.replaceAll('_', ' ')} {invoice.venue}</p><h3>{invoice.currency} {invoice.amount}</h3><p>Status: {invoice.status}</p><p>{invoice.note}</p><button className="btn btn-primary" onClick={() => window.print()}>Print / Save PDF</button></div>}<button className="btn btn-secondary" onClick={() => setInvoice(null)}>Close</button></section></div>}
+    <PaymentModal isOpen={!!checkout} {...checkout} onClose={() => setCheckout(null)} /></div>;
+}

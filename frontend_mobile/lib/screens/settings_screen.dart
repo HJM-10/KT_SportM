@@ -47,7 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _updateProfile() async {
     setState(() => _isProfileLoading = true);
     try {
-      final res = await _apiService.dio.put('/auth/me', data: {
+      await _apiService.dio.put('/auth/me', data: {
         'name': _nameController.text,
         'phone': _phoneController.text,
       });

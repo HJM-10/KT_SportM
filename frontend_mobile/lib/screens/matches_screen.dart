@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'package:intl/intl.dart';
@@ -9,7 +10,11 @@ class MatchesScreen extends StatefulWidget {
   State<MatchesScreen> createState() => _MatchesScreenState();
 }
 
-class _MatchesScreenState extends State<MatchesScreen> {
+class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesScreen> {
+  @override
+  List<String> get liveResources => ['matches'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchMatches();
   final ApiService _apiService = ApiService();
   List<dynamic> _matches = [];
   bool _isLoading = true;
@@ -23,11 +28,13 @@ class _MatchesScreenState extends State<MatchesScreen> {
   Future<void> _fetchMatches() async {
     try {
       final res = await _apiService.dio.get('/matches');
+      if (!mounted) return;
       setState(() {
         _matches = res.data['data'];
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -2,18 +2,18 @@ const prisma = require('../lib/prisma');
 
 const getRevenueSummary = async (req, res) => {
   try {
-    const bookings = await prisma.booking.findMany({
-      where: { status: { in: ['CONFIRMED', 'SCANNED'] } },
-      select: { finalPrice: true, createdAt: true, slot: { include: { venue: { select: { sportId: true } } } } }
+    const payments = await prisma.payment.findMany({
+      where: { status: 'PAID' },
+      select: { amount: true, updatedAt: true }
     });
 
-    const totalRevenue = bookings.reduce((sum, b) => sum + b.finalPrice, 0);
+    const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0);
 
     // Group by month
     const revenueByMonth = {};
-    bookings.forEach(b => {
-      const month = b.createdAt.toISOString().substring(0, 7); // YYYY-MM
-      revenueByMonth[month] = (revenueByMonth[month] || 0) + b.finalPrice;
+    payments.forEach(p => {
+      const month = p.updatedAt.toISOString().substring(0, 7);
+      revenueByMonth[month] = (revenueByMonth[month] || 0) + p.amount;
     });
 
     res.json({ success: true, data: { totalRevenue, revenueByMonth } });
@@ -61,10 +61,11 @@ const getCustomerAnalytics = async (req, res) => {
     const totalCustomers = await prisma.user.count({ where: { role: 'CUSTOMER' } });
     
     // Top customers by spending
-    const topCustomersRaw = await prisma.booking.groupBy({
+    const topCustomersRaw = await prisma.payment.groupBy({
+      where: { status: 'PAID', user: { role: 'CUSTOMER' } },
       by: ['userId'],
-      _sum: { finalPrice: true },
-      orderBy: { _sum: { finalPrice: 'desc' } },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: 'desc' } },
       take: 5
     });
     
@@ -73,7 +74,7 @@ const getCustomerAnalytics = async (req, res) => {
     
     const topCustomers = topCustomersRaw.map(t => ({
       user: users.find(u => u.id === t.userId),
-      totalSpent: t._sum.finalPrice || 0
+      totalSpent: t._sum.amount || 0
     }));
 
     res.json({ success: true, data: { totalCustomers, topCustomers } });
@@ -97,7 +98,8 @@ const exportBookingsCsv = async (req, res) => {
     bookings.forEach(b => {
       const date = b.createdAt.toISOString().split('T')[0];
       const venue = b.slot?.venue?.name || '';
-      csv += `${b.id},${date},"${b.user.name}","${b.user.email}","${venue}",${b.finalPrice},${b.status}\n`;
+      const cell = value => `"${String(value).replace(/^[=+@-]/, "'$&").replaceAll('"', '""')}"`;
+      csv += `${b.id},${date},${cell(b.user.name)},${cell(b.user.email)},${cell(venue)},${b.finalPrice},${b.status}\n`;
     });
 
     res.setHeader('Content-Type', 'text/csv');

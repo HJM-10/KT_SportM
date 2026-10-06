@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
@@ -29,7 +30,7 @@ const BookingsPage = () => {
 
   const confirmBooking = async (id) => {
     try {
-      await api.put(`/bookings/${id}/confirm`);
+      await api.put(`/bookings/${id}/confirm`, { receivedInPerson: true });
       toast.success('Booking confirmed');
       fetchBookings();
     } catch (err) {
@@ -80,6 +81,7 @@ const BookingsPage = () => {
     }
   };
 
+  useLiveRefresh('bookings', fetchBookings);
   useEffect(() => { fetchBookings(); }, []);
 
   return (
@@ -182,7 +184,7 @@ const BookingsPage = () => {
                       {b.status}
                     </span>
                   </td>
-                  <td style={{fontWeight: 700}}>${b.finalPrice || b.basePrice}</td>
+                  <td style={{fontWeight: 700}}>Rs. {b.finalPrice}</td>
                   <td>
                     {b.status === 'PENDING_PAYMENT' && (
                       <button 

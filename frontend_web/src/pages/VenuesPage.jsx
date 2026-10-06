@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Plus, Edit2, Trash2, Building2, DollarSign, Users } from 'lucide-react';
@@ -37,6 +38,7 @@ const VenuesPage = () => {
     } catch { /* silent */ }
   };
 
+  useLiveRefresh('venues', fetchVenues);
   useEffect(() => { fetchSports(); }, []);
   useEffect(() => { fetchVenues(); }, [filterSport]);
 
@@ -220,10 +222,11 @@ const VenuesPage = () => {
                   ))}
                 </select>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Price per Slot (Rs.)</label>
+                  <label className="form-label" htmlFor="venue-price">Price per Slot (Rs.)</label>
                   <input
+                    id="venue-price"
                     type="number"
                     min="0"
                     step="0.01"
@@ -234,10 +237,12 @@ const VenuesPage = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Capacity (players)</label>
+                  <label className="form-label" htmlFor="venue-capacity">Capacity (players)</label>
                   <input
+                    id="venue-capacity"
                     type="number"
                     min="1"
+                    step="1"
                     className="form-input"
                     value={formData.capacity}
                     onChange={e => setFormData({ ...formData, capacity: e.target.value })}

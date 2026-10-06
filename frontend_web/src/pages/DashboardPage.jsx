@@ -34,16 +34,17 @@ const DashboardPage = () => {
     const fetchStats = async () => {
       try {
         if (isAdmin) {
-          const [bookingsRes, sportsRes, tournamentsRes] = await Promise.all([
+          const [bookingsRes, sportsRes, tournamentsRes, revenueRes] = await Promise.all([
             api.get('/bookings'),
             api.get('/sports'),
-            api.get('/tournaments')
+            api.get('/tournaments'),
+            api.get('/reports/revenue')
           ]);
           setStats({
             totalBookings: bookingsRes.data.data.length,
             activeSports: sportsRes.data.data.length,
             tournaments: tournamentsRes.data.data.length,
-            revenue: bookingsRes.data.data.reduce((acc, b) => acc + (b.status !== 'CANCELLED' ? b.totalPrice || b.basePrice : 0), 0)
+            revenue: revenueRes.data.data.totalRevenue
           });
           setRecentBookings(bookingsRes.data.data.slice(0, 5));
         } else {
@@ -124,7 +125,7 @@ const DashboardPage = () => {
               <div className="stat-card">
                 <div className="stat-icon" style={{ background: 'rgba(16,185,129,0.15)', color: 'var(--success)' }}><span>$</span></div>
                 <div>
-                  <div className="stat-value">${stats.revenue}</div>
+                  <div className="stat-value">PKR {stats.revenue}</div>
                   <div className="stat-label">Total Revenue</div>
                 </div>
               </div>
@@ -174,7 +175,7 @@ const DashboardPage = () => {
                               {b.status}
                             </span>
                           </td>
-                          <td style={{fontWeight: 700}}>${b.finalPrice || b.basePrice}</td>
+                          <td style={{fontWeight: 700}}>PKR {b.finalPrice}</td>
                         </tr>
                       ))}
                     </tbody>

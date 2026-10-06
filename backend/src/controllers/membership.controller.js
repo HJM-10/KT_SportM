@@ -1,5 +1,5 @@
 const prisma = require('../lib/prisma');
-const { randomUUID: uuidv4 } = require('node:crypto');
+const { randomUUID } = require('node:crypto');
 
 const getMyMembership = async (req, res) => {
   try {
@@ -9,7 +9,7 @@ const getMyMembership = async (req, res) => {
     res.json({ success: true, data: membership });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -22,7 +22,7 @@ const getAllMemberships = async (req, res) => {
     res.json({ success: true, data: memberships });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -39,6 +39,11 @@ const purchaseMembership = async (req, res) => {
 
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.membership.findUnique({ where: { userId: req.user.id } });
+      if (existing) {
+        const payment = await tx.payment.findUnique({ where: { membershipId: existing.id } });
+        if (payment?.status === 'PENDING' && existing.tier === tier) return { ...existing, paymentId: payment.id };
+        if (payment || existing.isActive) throw Object.assign(new Error('Contact arena staff to change an existing membership; your current card and payment history are retained'), { status: 409 });
+      }
       
       const membership = await tx.membership.upsert({
         where: { userId: req.user.id },
@@ -46,14 +51,12 @@ const purchaseMembership = async (req, res) => {
         create: {
           userId: req.user.id,
           tier,
-          cardNumber: `SSH-${Math.floor(100000 + Math.random() * 900000)}`,
+          cardNumber: `SSH-${randomUUID()}`,
           isActive: amount === 0
         }
       });
 
       if (amount > 0) {
-        const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
-        const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
 
         const payment = await tx.payment.create({
           data: {
@@ -61,12 +64,9 @@ const purchaseMembership = async (req, res) => {
             amount,
             purpose: 'MEMBERSHIP',
             membershipId: membership.id,
-            stripePaymentIntentId,
-            stripeClientSecret,
             status: 'PENDING'
           }
         });
-        membership.clientSecret = stripeClientSecret;
         membership.paymentId = payment.id;
       }
 
@@ -76,7 +76,7 @@ const purchaseMembership = async (req, res) => {
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 

@@ -170,6 +170,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: const Icon(Icons.notifications),
             onPressed: () => Navigator.pushNamed(context, '/notifications'),
           ),
+          IconButton(icon: const Icon(Icons.receipt_long), tooltip: 'Payments and invoices', onPressed: () => Navigator.pushNamed(context, '/payments')),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => context.read<AuthProvider>().logout(),
@@ -267,7 +268,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF6366F1).withOpacity(0.4),
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.4),
                   blurRadius: 12,
                   offset: const Offset(0, 6),
                 ),
@@ -288,8 +289,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          color: const Color(0xFF6366F1).withOpacity(0.08),
-          border: Border.all(color: const Color(0xFF6366F1).withOpacity(0.2)),
+          color: const Color(0xFF6366F1).withValues(alpha: 0.08),
+          border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
         ),
         child: const Row(
           children: [
@@ -319,7 +320,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: isDark ? const Color(0xFF1E293B) : Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 )
@@ -333,7 +334,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: const Color(0xFF6366F1).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(color: const Color(0xFF6366F1).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                       child: const Icon(Icons.sports, color: Color(0xFF6366F1), size: 18),
                     ),
                     const SizedBox(width: 12),
@@ -385,13 +386,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.12),
+            color: const Color(0xFF6366F1).withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
         ],
         border: Border.all(
-          color: const Color(0xFF6366F1).withOpacity(0.1),
+          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -402,7 +403,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withOpacity(0.1),
+                color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 32, color: const Color(0xFF6366F1)),

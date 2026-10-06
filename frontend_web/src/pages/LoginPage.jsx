@@ -69,9 +69,6 @@ const LoginPage = () => {
             Don't have an account? <Link to="/signup" className="auth-link">Sign up</Link>
           </div>
 
-          <div className="auth-divider" style={{ fontSize: 12, color: 'var(--text-dim)', borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-            Demo: admin@smartsportshub.com / admin123
-          </div>
         </form>
       </div>
     </div>

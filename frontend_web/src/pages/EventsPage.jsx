@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import useAuthStore from '../store/authStore';
@@ -20,7 +21,7 @@ const EventsPage = () => {
   // Create Event state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [formData, setFormData] = useState({
-    name: '', description: '', sportId: '', startDate: '', endDate: '', type: 'TRAINING_CAMP', fee: 0, maxParticipants: 50, venue: ''
+    name: '', description: '', sportId: '', startDate: '', endDate: '', type: 'CAMP', fee: 0, maxParticipants: 50, venue: ''
   });
 
   const fetchEvents = async () => {
@@ -45,6 +46,7 @@ const EventsPage = () => {
     }
   };
 
+  useLiveRefresh('events', fetchEvents);
   useEffect(() => {
     fetchEvents();
     if (isAdmin) fetchSports();
@@ -57,7 +59,6 @@ const EventsPage = () => {
         if (fee > 0 && res.data.data.paymentId) {
           setPaymentData({
             paymentId: res.data.data.paymentId,
-            paymentIntentId: res.data.data.clientSecret.split('_secret_')[0],
             amount: fee
           });
           setShowPayment(true);
@@ -257,9 +258,11 @@ const EventsPage = () => {
                 <div className="form-group">
                   <label className="form-label">Type</label>
                   <select className="form-select w-full" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                    <option value="TRAINING_CAMP" className="text-black">Training Camp</option>
-                    <option value="WORKSHOP" className="text-black">Workshop</option>
-                    <option value="SEMINAR" className="text-black">Seminar</option>
+                    <option value="CAMP">Training Camp</option>
+                    <option value="TRAINING">Training</option>
+                    <option value="COACHING">Coaching</option>
+                    <option value="LEAGUE">League</option>
+                    <option value="FRIENDLY">Friendly</option>
                   </select>
                 </div>
               </div>

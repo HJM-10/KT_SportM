@@ -41,7 +41,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               child: ListTile(
                 leading: const Icon(Icons.money, color: Colors.green, size: 40),
                 title: const Text('Total Revenue'),
-                subtitle: Text('\$${_revenue?['totalRevenue'] ?? 0}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                subtitle: Text('Rs. ${_revenue?['totalRevenue'] ?? 0}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

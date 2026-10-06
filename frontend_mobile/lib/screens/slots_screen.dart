@@ -3,10 +3,13 @@ import 'package:intl/intl.dart';
 import 'package:dio/dio.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class SlotsScreen extends StatefulWidget {
   final int venueId;
-  const SlotsScreen({super.key, required this.venueId});
+  final int? rescheduleBookingId;
+  const SlotsScreen({super.key, required this.venueId, this.rescheduleBookingId});
   @override
   State<SlotsScreen> createState() => _SlotsScreenState();
 }
@@ -18,9 +21,10 @@ class _SlotsScreenState extends State<SlotsScreen> {
   String? error;
   final promo = TextEditingController();
   @override
-  void initState() { super.initState(); load(); }
+  void initState() { super.initState(); load(); ApiService().socket.on('booking_updated', onUpdate); }
+  void onUpdate(dynamic _) { if (mounted) load(); }
   @override
-  void dispose() { promo.dispose(); super.dispose(); }
+  void dispose() { ApiService().socket.off('booking_updated', onUpdate); promo.dispose(); super.dispose(); }
   Future<void> load() async {
     setState(() { loading = true; error = null; });
     try {
@@ -32,6 +36,11 @@ class _SlotsScreenState extends State<SlotsScreen> {
   Future<void> reserve(int id) async {
     setState(() => booking = true);
     try {
+      if (widget.rescheduleBookingId != null) {
+        await ApiService().dio.put('/bookings/${widget.rescheduleBookingId}/reschedule', data: {'slotId': id});
+        if (mounted) Navigator.pop(context);
+        return;
+      }
       final response = await ApiService().dio.post('/bookings', data: {'slotId': id, 'promoCode': promo.text.trim()});
       if (!mounted) return;
       final record = response.data['data'];
@@ -46,10 +55,20 @@ class _SlotsScreenState extends State<SlotsScreen> {
       if (mounted) await load();
     } finally { if (mounted) setState(() => booking = false); }
   }
+  Future<void> publishSlot() async {
+    final start = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 9, minute: 0));
+    if (start == null || !mounted) return;
+    final end = await showTimePicker(context: context, initialTime: const TimeOfDay(hour: 10, minute: 0));
+    if (end == null || !mounted) return;
+    String hhmm(TimeOfDay t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    try { await ApiService().dio.post('/bookings/slots', data: {'venueId': widget.venueId, 'date': DateFormat('yyyy-MM-dd').format(date), 'startTime': hhmm(start), 'endTime': hhmm(end)}); if (mounted) await load(); }
+    catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e is DioException ? e.response?.data['message'] ?? 'Could not publish slot' : 'Could not publish slot'))); }
+  }
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Available slots')),
     body: ListView(padding: const EdgeInsets.all(16), children: [
+      if (context.watch<AuthProvider>().user?['role'] == 'ADMIN') OutlinedButton(onPressed: publishSlot, child: const Text('Publish a slot for selected date')),
       OutlinedButton(onPressed: booking ? null : () async {
         final selected = await showDatePicker(context: context, initialDate: date, firstDate: DateTime.now(), lastDate: DateTime.now().add(const Duration(days: 365)));
         if (selected != null && mounted) { setState(() => date = selected); await load(); }

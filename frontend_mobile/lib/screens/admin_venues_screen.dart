@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'slots_screen.dart';
 
 class AdminVenuesScreen extends StatefulWidget {
   const AdminVenuesScreen({super.key});
@@ -101,7 +102,7 @@ class _AdminVenuesScreenState extends State<AdminVenuesScreen> {
                       TextField(controller: capacityCtrl, decoration: inputDeco('Capacity (People)', Icons.group), keyboardType: TextInputType.number),
                       const SizedBox(height: 16),
                       DropdownButtonFormField<int>(
-                        value: selectedSportId,
+                        initialValue: selectedSportId,
                         items: sports.map((s) => DropdownMenuItem<int>(value: s['id'], child: Text(s['name']))).toList(),
                         onChanged: (val) => setDialogState(() => selectedSportId = val!),
                         decoration: inputDeco('Sport', Icons.sports_soccer),
@@ -132,10 +133,10 @@ class _AdminVenuesScreenState extends State<AdminVenuesScreen> {
                                 } else {
                                   await _apiService.dio.put('/venues/${venue['id']}', data: data);
                                 }
-                                if (mounted) Navigator.pop(context);
+                                if (context.mounted) Navigator.pop(context);
                                 _fetchVenues();
                               } catch (e) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error ${venue == null ? 'adding' : 'editing'} venue')));
+                                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error ${venue == null ? 'adding' : 'editing'} venue')));
                               }
                             },
                             style: ElevatedButton.styleFrom(
@@ -173,6 +174,7 @@ class _AdminVenuesScreenState extends State<AdminVenuesScreen> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(icon: const Icon(Icons.calendar_month), tooltip: 'Manage availability', onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SlotsScreen(venueId: venue['id'])))),
                 IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _showAddVenueDialog(venue: venue)),
                 IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteVenue(venue['id'])),
               ],

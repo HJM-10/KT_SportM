@@ -32,7 +32,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
     try {
-      await _apiService.dio.post('/reviews/${widget.venueId}', data: {
+      await _apiService.dio.post('/venues/${widget.venueId}/reviews', data: {
         'rating': _selectedRating,
         'comment': _commentController.text.trim(),
         'bookingId': widget.bookingId,
@@ -94,8 +94,8 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
             const SizedBox(height: 8),
             Text(
               _ratingLabel(_selectedRating),
-              style: TextStyle(
-                color: const Color(0xFFF59E0B),
+              style: const TextStyle(
+                color: Color(0xFFF59E0B),
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),

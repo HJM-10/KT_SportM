@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'slots_screen.dart';
@@ -12,7 +13,11 @@ class VenuesScreen extends StatefulWidget {
   State<VenuesScreen> createState() => _VenuesScreenState();
 }
 
-class _VenuesScreenState extends State<VenuesScreen> {
+class _VenuesScreenState extends State<VenuesScreen> with LiveRefresh<VenuesScreen> {
+  @override
+  List<String> get liveResources => ['venues'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchVenues();
   final ApiService _apiService = ApiService();
   List<dynamic> _venues = [];
   bool _isLoading = true;

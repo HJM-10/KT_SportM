@@ -4,6 +4,7 @@ import '../services/payment_service.dart';
 import 'package:intl/intl.dart';
 import 'booking_qr_screen.dart';
 import 'write_review_screen.dart';
+import 'slots_screen.dart';
 import '../utils/icon_helper.dart';
 import '../utils/ui_utils.dart';
 
@@ -110,7 +111,6 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                             ? DateFormat.yMMMd().format(DateTime.parse(slotDate))
                             : 'Date TBD';
                         final isConfirmed = b['status'] == 'CONFIRMED';
-                        final isCancelled = b['status'] == 'CANCELLED';
                         final isScanned = b['status'] == 'SCANNED';
                         final isPending = b['status'] == 'PENDING_PAYMENT';
                         
@@ -189,6 +189,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
                                 ),
                                 const SizedBox(height: 16),
                                 const Divider(color: Colors.white12),
+                                if (isConfirmed || isPending)
+                                  Wrap(children: [
+                                    TextButton(onPressed: () async {
+                                      await Navigator.push(context, MaterialPageRoute(builder: (_) => SlotsScreen(venueId: b['slot']['venueId'], rescheduleBookingId: b['id'])));
+                                      if (mounted) _fetchBookings();
+                                    }, child: const Text('Reschedule')),
+                                    if (isPending) TextButton(onPressed: () => _cancelBooking(b['id']), child: const Text('Cancel reservation')),
+                                  ]),
                                 if (b['status'] == 'PENDING_PAYMENT' && b['payment'] != null)
                                   TextButton(onPressed: () async {
                                     try { await PaymentService.checkout(b['payment']['id']); }

@@ -13,7 +13,7 @@ const getAllEvents = async (req, res) => {
     res.json({ success: true, data: events });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -30,7 +30,7 @@ const getEventById = async (req, res) => {
     res.json({ success: true, data: event });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -61,7 +61,7 @@ const createEvent = async (req, res) => {
     try { socket.getIO().emit('event_updated', event); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
@@ -80,7 +80,7 @@ const updateEvent = async (req, res) => {
         endDate: endDate ? new Date(endDate) : undefined,
         venue, 
         maxParticipants: maxParticipants ? parseInt(maxParticipants) : undefined,
-        fee: fee ? parseFloat(fee) : undefined,
+        fee: fee !== undefined ? parseFloat(fee) : undefined,
         imageUrl,
         status
       }
@@ -90,13 +90,15 @@ const updateEvent = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Event not found' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
 const deleteEvent = async (req, res) => {
   try {
     const eventId = parseInt(req.params.id);
+    const registrationsCount = await prisma.eventRegistration.count({ where: { eventId } });
+    if (registrationsCount > 0) return res.status(409).json({ success: false, message: 'This event has registrations. Cancel it instead to retain payment history.' });
     
     // Find all registrations for this event to delete their payments
     const registrations = await prisma.eventRegistration.findMany({ 
@@ -117,11 +119,10 @@ const deleteEvent = async (req, res) => {
     res.json({ success: true, message: 'Event deleted successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 
-const { randomUUID: uuidv4 } = require('node:crypto');
 
 const registerForEvent = async (req, res) => {
   try {
@@ -138,6 +139,10 @@ const registerForEvent = async (req, res) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      await tx.event.update({ where: { id: eventId }, data: { updatedAt: new Date() } });
+      const current = await tx.event.findUnique({ where: { id: eventId } });
+      const count = await tx.eventRegistration.count({ where: { eventId } });
+      if (current.status !== 'UPCOMING' || (current.maxParticipants && count >= current.maxParticipants)) throw Object.assign(new Error('Event registration is closed or full'), { status: 409 });
       const registration = await tx.eventRegistration.create({
         data: {
           eventId,
@@ -146,8 +151,6 @@ const registerForEvent = async (req, res) => {
       });
 
       if (event.fee > 0) {
-        const stripePaymentIntentId = `pi_dummy_${uuidv4()}`;
-        const stripeClientSecret = `${stripePaymentIntentId}_secret_${uuidv4()}`;
 
         const payment = await tx.payment.create({
           data: {
@@ -155,12 +158,9 @@ const registerForEvent = async (req, res) => {
             amount: event.fee,
             purpose: 'EVENT_REGISTRATION',
             eventRegId: registration.id,
-            stripePaymentIntentId,
-            stripeClientSecret,
             status: 'PENDING'
           }
         });
-        registration.clientSecret = stripeClientSecret;
         registration.paymentId = payment.id;
       }
 
@@ -168,11 +168,11 @@ const registerForEvent = async (req, res) => {
     });
 
     res.status(201).json({ success: true, data: result });
-    try { socket.getIO().emit('event_updated', result); } catch (e) {}
+    try { socket.getIO().emit('event_updated', { eventId }); } catch (e) {}
   } catch (err) {
     if (err.code === 'P2002') return res.status(409).json({ success: false, message: 'Already registered for this event' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
   }
 };
 

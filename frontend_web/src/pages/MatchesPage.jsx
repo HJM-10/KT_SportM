@@ -1,3 +1,4 @@
+import useLiveRefresh from '../services/useLiveRefresh';
 import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Calendar, Swords } from 'lucide-react';
@@ -41,6 +42,7 @@ const MatchesPage = () => {
     }
   };
 
+  useLiveRefresh('matches', fetchMatches);
   useEffect(() => { 
     fetchMatches(); 
     if (isAdmin) fetchTournaments();

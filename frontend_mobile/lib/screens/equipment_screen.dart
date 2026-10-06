@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
@@ -9,7 +10,11 @@ class EquipmentScreen extends StatefulWidget {
   State<EquipmentScreen> createState() => _EquipmentScreenState();
 }
 
-class _EquipmentScreenState extends State<EquipmentScreen> {
+class _EquipmentScreenState extends State<EquipmentScreen> with LiveRefresh<EquipmentScreen> {
+  @override
+  List<String> get liveResources => ['equipment'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchEquipment();
   final ApiService _apiService = ApiService();
   List<dynamic> _equipment = [];
   bool _isLoading = true;

@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
@@ -9,7 +10,11 @@ class EventsScreen extends StatefulWidget {
   State<EventsScreen> createState() => _EventsScreenState();
 }
 
-class _EventsScreenState extends State<EventsScreen> {
+class _EventsScreenState extends State<EventsScreen> with LiveRefresh<EventsScreen> {
+  @override
+  List<String> get liveResources => ['events'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchEvents();
   final ApiService _apiService = ApiService();
   List<dynamic> _events = [];
   bool _isLoading = true;

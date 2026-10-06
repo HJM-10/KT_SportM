@@ -18,6 +18,7 @@ import 'screens/equipment_screen.dart';
 import 'screens/membership_screen.dart';
 import 'screens/complaints_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/payments_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,6 +72,7 @@ class SmartSportsHubApp extends StatelessWidget {
             '/membership': (context) => const MembershipScreen(),
             '/complaints': (context) => const ComplaintsScreen(),
             '/notifications': (context) => const NotificationsScreen(),
+            '/payments': (context) => const PaymentsScreen(),
             '/settings': (context) => const SettingsScreen(),
           },
         );

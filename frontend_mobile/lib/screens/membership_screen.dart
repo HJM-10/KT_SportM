@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
@@ -9,7 +10,11 @@ class MembershipScreen extends StatefulWidget {
   State<MembershipScreen> createState() => _MembershipScreenState();
 }
 
-class _MembershipScreenState extends State<MembershipScreen> {
+class _MembershipScreenState extends State<MembershipScreen> with LiveRefresh<MembershipScreen> {
+  @override
+  List<String> get liveResources => ['membership', 'payments'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchMembership();
   final ApiService _apiService = ApiService();
   Map<String, dynamic>? _membership;
   bool _isLoading = true;

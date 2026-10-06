@@ -11,6 +11,7 @@ router.get('/my', authenticate, getMyBookings);
 router.get('/', authenticate, requireAdmin, getAllBookings);
 router.post('/', authenticate, validate(bookingSchemas.createBooking), createBooking);
 router.put('/:id/cancel', authenticate, cancelBooking);
+router.put('/:id/reschedule', authenticate, require('../controllers/reschedule.controller').reschedule);
 router.put('/:id/confirm', authenticate, requireAdmin, confirmBooking);
 
 router.get('/:id/qr', authenticate, getBookingQR);

@@ -7,7 +7,9 @@ import 'admin_venues_screen.dart';
 import 'admin_bookings_screen.dart';
 import 'admin_tournaments_screen.dart';
 import 'admin_events_screen.dart';
-import 'admin_payments_screen.dart';
+import 'payments_screen.dart';
+import 'fixtures_screen.dart';
+import 'check_in_screen.dart';
 import 'admin_reports_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
@@ -72,7 +74,9 @@ class AdminDashboardScreen extends StatelessWidget {
                     _buildFeatureCard(context, 'Bookings', Icons.book_online, Colors.purple, screen: const AdminBookingsScreen()),
                     _buildFeatureCard(context, 'Tournaments', Icons.emoji_events, Colors.amber, screen: const AdminTournamentsScreen()),
                     _buildFeatureCard(context, 'Events', Icons.event, Colors.cyan, screen: const AdminEventsScreen()),
-                    _buildFeatureCard(context, 'Payments', Icons.payment, Colors.teal, screen: const AdminPaymentsScreen()),
+                    _buildFeatureCard(context, 'Payments', Icons.payment, Colors.teal, screen: const PaymentsScreen(admin: true)),
+                    _buildFeatureCard(context, 'Fixtures', Icons.sports, Colors.indigo, screen: const FixturesScreen()),
+                    _buildFeatureCard(context, 'Check-in', Icons.qr_code_scanner, Colors.blueGrey, screen: const CheckInScreen()),
                     _buildFeatureCard(context, 'Reports', Icons.bar_chart, Colors.redAccent, screen: const AdminReportsScreen()),
                   ],
                 ),
@@ -105,13 +109,13 @@ class AdminDashboardScreen extends StatelessWidget {
           color: isDark ? const Color(0xFF1E293B) : Colors.white,
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(isDark ? 0.2 : 0.1),
+              color: color.withValues(alpha: isDark ? 0.2 : 0.1),
               blurRadius: 16,
               offset: const Offset(0, 8),
             ),
           ],
           border: Border.all(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -122,7 +126,7 @@ class AdminDashboardScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, size: 36, color: color),

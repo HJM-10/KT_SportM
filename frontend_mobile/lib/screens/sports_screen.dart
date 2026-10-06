@@ -1,3 +1,4 @@
+import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/icon_helper.dart';
@@ -10,7 +11,11 @@ class SportsScreen extends StatefulWidget {
   State<SportsScreen> createState() => _SportsScreenState();
 }
 
-class _SportsScreenState extends State<SportsScreen> {
+class _SportsScreenState extends State<SportsScreen> with LiveRefresh<SportsScreen> {
+  @override
+  List<String> get liveResources => ['sports'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetchSports();
   final ApiService _apiService = ApiService();
   List<dynamic> _sports = [];
   bool _isLoading = true;
