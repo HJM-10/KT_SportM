@@ -1,0 +1,4 @@
+# Local package download caches used during setup.
+**/.npm-cache/
+# Isolated local demo database, configuration and logs.
+.local-demo/
