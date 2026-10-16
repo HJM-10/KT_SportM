@@ -1,0 +1,100 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  bool _isLoading = false;
+
+  void _login() async {
+    setState(() => _isLoading = true);
+    final errorMessage = await context.read<AuthProvider>().login(
+      _emailCtrl.text,
+      _passwordCtrl.text,
+    );
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    
+    if (errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Image.asset('assets/logo.jpg', width: 100, height: 100, fit: BoxFit.cover),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Smart Sports Hub',
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 48),
+              TextField(
+                controller: _emailCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Login', style: TextStyle(fontSize: 18)),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pushReplacementNamed(context, '/signup'),
+                child: const Text('Don\'t have an account? Sign up'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

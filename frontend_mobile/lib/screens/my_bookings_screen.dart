@@ -1,0 +1,266 @@
+import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/payment_service.dart';
+import 'package:intl/intl.dart';
+import 'booking_qr_screen.dart';
+import 'write_review_screen.dart';
+import 'slots_screen.dart';
+import '../utils/icon_helper.dart';
+import '../utils/ui_utils.dart';
+
+class MyBookingsScreen extends StatefulWidget {
+  const MyBookingsScreen({super.key});
+
+  @override
+  State<MyBookingsScreen> createState() => _MyBookingsScreenState();
+}
+
+class _MyBookingsScreenState extends State<MyBookingsScreen> {
+  final ApiService _apiService = ApiService();
+  List<dynamic> _bookings = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBookings();
+    _apiService.socket.on('booking_updated', _onBookingUpdated);
+  }
+
+  @override
+  void dispose() {
+    _apiService.socket.off('booking_updated', _onBookingUpdated);
+    super.dispose();
+  }
+
+  void _onBookingUpdated(dynamic data) {
+    if (mounted) {
+      _fetchBookings();
+    }
+  }
+
+  Future<void> _fetchBookings() async {
+    try {
+      final res = await _apiService.dio.get('/bookings/my');
+      if (mounted) {
+        setState(() {
+          _bookings = res.data['data'];
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load bookings')),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelBooking(int id) async {
+    final confirm = await UiUtils.showAnimatedConfirmDialog(
+      context: context,
+      title: 'Cancel Booking?',
+      message: 'Are you sure you want to cancel this booking?',
+      confirmText: 'Yes, Cancel',
+      cancelText: 'No',
+      isDanger: true,
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await _apiService.dio.put('/bookings/$id/cancel');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Booking cancelled successfully')),
+      );
+      _fetchBookings();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text((e as dynamic).response?.data['message'] ?? 'Failed to cancel')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('My Bookings')),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _fetchBookings,
+              child: _bookings.isEmpty
+                  ? ListView(
+                      children: const [
+                        SizedBox(height: 100),
+                        Center(child: Text('No bookings found', style: TextStyle(color: Colors.grey))),
+                      ],
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _bookings.length,
+                      itemBuilder: (context, index) {
+                        final b = _bookings[index];
+                        final slotDate = b['slot']?['date'] as String?;
+                        final dateStr = slotDate != null
+                            ? DateFormat.yMMMd().format(DateTime.parse(slotDate))
+                            : 'Date TBD';
+                        final isConfirmed = b['status'] == 'CONFIRMED';
+                        final isScanned = b['status'] == 'SCANNED';
+                        final isPending = b['status'] == 'PENDING_PAYMENT';
+                        
+                        Color badgeColor;
+                        Color badgeBg;
+                        if (isConfirmed) { badgeColor = const Color(0xFF818CF8); badgeBg = const Color(0xFF6366F1); }
+                        else if (isScanned) { badgeColor = Colors.green; badgeBg = Colors.green; }
+                        else if (isPending) { badgeColor = Colors.orange; badgeBg = Colors.orange; }
+                        else { badgeColor = Colors.red; badgeBg = Colors.red; }
+                        
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '#${b['id']}',
+                                      style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: badgeBg.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        b['status'],
+                                        style: TextStyle(
+                                          color: badgeColor,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Icon(IconHelper.getIcon(b['slot']['venue']['sport']['icon']), size: 20),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      b['slot']['venue']['sport']['name'] ?? '',
+                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                                    const SizedBox(width: 8),
+                                    Text(b['slot']['venue']['name'], style: const TextStyle(color: Colors.grey)),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                                    const SizedBox(width: 8),
+                                    Text(dateStr, style: const TextStyle(color: Colors.grey)),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                                    const SizedBox(width: 8),
+                                    Text('${b['slot']['startTime']} - ${b['slot']['endTime']}', style: const TextStyle(color: Colors.grey)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                const Divider(color: Colors.white12),
+                                if (isConfirmed || isPending)
+                                  Wrap(children: [
+                                    TextButton(onPressed: () async {
+                                      await Navigator.push(context, MaterialPageRoute(builder: (_) => SlotsScreen(venueId: b['slot']['venueId'], rescheduleBookingId: b['id'])));
+                                      if (mounted) _fetchBookings();
+                                    }, child: const Text('Reschedule')),
+                                    if (isPending) TextButton(onPressed: () => _cancelBooking(b['id']), child: const Text('Cancel reservation')),
+                                  ]),
+                                if (b['status'] == 'PENDING_PAYMENT' && b['payment'] != null)
+                                  TextButton(onPressed: () async {
+                                    try { await PaymentService.checkout(b['payment']['id']); }
+                                    catch (_) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checkout unavailable. Please try again later.'))); }
+                                  }, child: const Text('Pay with Stripe')),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                Text('Rs. ${b['finalPrice'] ?? b['basePrice']}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                    if (isConfirmed)
+                                      Row(
+                                        children: [
+                                          TextButton(
+                                            onPressed: () => _cancelBooking(b['id']),
+                                            style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) => BookingQrScreen(bookingId: b['id']),
+                                                ),
+                                              );
+                                            },
+                                            child: const Text('Show QR'),
+                                          ),
+                                        ],
+                                      ),
+                                    if (b['status'] == 'SCANNED')
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => WriteReviewScreen(
+                                                bookingId: b['id'],
+                                                venueId: b['slot']['venue']['id'],
+                                                venueName: b['slot']['venue']['name'],
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        icon: const Icon(Icons.star_outline, size: 16),
+                                        label: const Text('Review'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFFF59E0B),
+                                          foregroundColor: Colors.black,
+                                        ),
+                                      ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+    );
+  }
+}
+
+
