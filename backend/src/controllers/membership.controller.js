@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 const { randomUUID } = require('node:crypto');
 
@@ -9,7 +10,7 @@ const getMyMembership = async (req, res) => {
     res.json({ success: true, data: membership });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -22,7 +23,7 @@ const getAllMemberships = async (req, res) => {
     res.json({ success: true, data: memberships });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -76,7 +77,7 @@ const purchaseMembership = async (req, res) => {
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 

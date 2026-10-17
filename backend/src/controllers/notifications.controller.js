@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getMyNotifications = async (req, res) => {
@@ -20,7 +21,7 @@ const getMyNotifications = async (req, res) => {
     res.json({ success: true, data: notifications, unreadCount });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -44,7 +45,7 @@ const markAsRead = async (req, res) => {
     res.json({ success: true, message: 'Notifications marked as read' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -61,7 +62,7 @@ const registerFcmToken = async (req, res) => {
     res.json({ success: true, message: 'FCM Token registered' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

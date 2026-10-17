@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getVenues = async (req, res) => {
@@ -14,7 +15,7 @@ const getVenues = async (req, res) => {
     res.json({ success: true, data: venues });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -28,7 +29,7 @@ const getVenueById = async (req, res) => {
     res.json({ success: true, data: venue });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -45,7 +46,7 @@ const createVenue = async (req, res) => {
     res.status(201).json({ success: true, data: venue });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -61,7 +62,7 @@ const updateVenue = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Venue not found' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -72,7 +73,7 @@ const deleteVenue = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Venue not found' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

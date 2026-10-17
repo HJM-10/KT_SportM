@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getUsers = async (req, res) => {
@@ -44,7 +45,7 @@ const getUsers = async (req, res) => {
     res.json({ success: true, data: usersWithStats });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -62,7 +63,7 @@ const updateUserRole = async (req, res) => {
     res.json({ success: true, message: 'User role updated', data: user });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -96,7 +97,7 @@ const deleteUser = async (req, res) => {
     res.json({ success: true, message: 'User marked as inactive and future bookings cancelled' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

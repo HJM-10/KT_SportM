@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getRecommendedSlots = async (req, res) => {
@@ -62,7 +63,7 @@ const getRecommendedSlots = async (req, res) => {
     res.json({ success: true, data: availableSlots });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getVenueReviews = async (req, res) => {
@@ -11,7 +12,7 @@ const getVenueReviews = async (req, res) => {
     res.json({ success: true, data: reviews });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -55,7 +56,7 @@ const createReview = async (req, res) => {
     res.status(201).json({ success: true, data: review });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -73,7 +74,7 @@ const deleteReview = async (req, res) => {
     res.json({ success: true, message: 'Review deleted successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -89,7 +90,7 @@ const getAllReviews = async (req, res) => {
     res.json({ success: true, data: reviews });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getRevenueSummary = async (req, res) => {
@@ -19,7 +20,7 @@ const getRevenueSummary = async (req, res) => {
     res.json({ success: true, data: { totalRevenue, revenueByMonth } });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -38,7 +39,7 @@ const getBookingAnalytics = async (req, res) => {
     res.json({ success: true, data: { statusCounts } });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -52,7 +53,7 @@ const getUtilizationReport = async (req, res) => {
     res.json({ success: true, data: { totalSlots, bookedSlots, utilizationRate } });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -80,7 +81,7 @@ const getCustomerAnalytics = async (req, res) => {
     res.json({ success: true, data: { totalCustomers, topCustomers } });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -107,7 +108,7 @@ const exportBookingsCsv = async (req, res) => {
     res.send(csv);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

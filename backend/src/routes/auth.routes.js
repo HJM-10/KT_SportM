@@ -11,6 +11,7 @@ const loginLimiter = rateLimit({
   message: { success: false, message: 'Too many failed login attempts, please try again after 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
+  requestWasSuccessful: (req, res) => res.statusCode !== 401,
   skipSuccessfulRequests: true, // only count failed attempts
 });
 

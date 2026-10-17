@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
@@ -35,7 +36,7 @@ const register = async (req, res) => {
     res.status(201).json({ success: true, data: { user, token } });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -70,7 +71,7 @@ const login = async (req, res) => {
     res.json({ success: true, data: { user: userWithoutPassword, token } });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -84,7 +85,7 @@ const getMe = async (req, res) => {
     res.json({ success: true, data: user });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -99,7 +100,7 @@ const updateProfile = async (req, res) => {
     res.json({ success: true, data: user });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -112,7 +113,7 @@ const changePassword = async (req, res) => {
 
     const valid = await bcrypt.compare(oldPassword, user.password);
     if (!valid) {
-      return res.status(401).json({ success: false, message: 'Incorrect current password' });
+      return res.status(400).json({ success: false, code: 'INCORRECT_PASSWORD', message: 'Incorrect current password' });
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);
@@ -124,7 +125,7 @@ const changePassword = async (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

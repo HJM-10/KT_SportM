@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getMatches = async (req, res) => {
@@ -21,7 +22,7 @@ const getMatches = async (req, res) => {
     res.json({ success: true, data: matches });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -35,7 +36,7 @@ const getMatchById = async (req, res) => {
     res.json({ success: true, data: match });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -57,7 +58,7 @@ const createMatch = async (req, res) => {
     res.status(201).json({ success: true, data: match });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -76,7 +77,7 @@ const updateMatchResult = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Match not found' });
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

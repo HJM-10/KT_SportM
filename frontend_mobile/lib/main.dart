@@ -20,6 +20,8 @@ import 'screens/complaints_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/payments_screen.dart';
 
+final _navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PushService.initialize();
@@ -42,30 +44,14 @@ class SmartSportsHubApp extends StatelessWidget {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, _) {
         return MaterialApp(
+          navigatorKey: _navigatorKey,
           title: 'Smart Sports Hub',
           themeMode: themeProvider.themeMode,
           theme: ThemeProvider.lightTheme,
           darkTheme: ThemeProvider.darkTheme,
-          home: Consumer<AuthProvider>(
-            builder: (context, auth, _) {
-              if (auth.isLoading) {
-                return const Scaffold(
-                  body: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
-              if (auth.isAuthenticated) {
-                if (auth.user?['role'] == 'ADMIN') {
-                  return const AdminDashboardScreen();
-                }
-                return const MainLayout();
-              }
-              return const LoginScreen();
-            },
-          ),
+          home: const SessionGate(),
           routes: {
-            '/login': (context) => const LoginScreen(),
+            '/login': (context) => const SessionGate(),
             '/signup': (context) => const SignupScreen(),
             '/events': (context) => const EventsScreen(),
             '/equipment': (context) => const EquipmentScreen(),
@@ -112,13 +98,41 @@ class _MainLayoutState extends State<MainLayout> {
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.sports_soccer), label: 'Sports'),
-          BottomNavigationBarItem(icon: Icon(Icons.emoji_events), label: 'Tournaments'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.sports_soccer), label: 'Sports'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.emoji_events), label: 'Tournaments'),
           BottomNavigationBarItem(icon: Icon(Icons.sports), label: 'Matches'),
-          BottomNavigationBarItem(icon: Icon(Icons.book_online), label: 'Bookings'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.book_online), label: 'Bookings'),
         ],
       ),
     );
   }
 }
 
+class SessionGate extends StatelessWidget {
+  const SessionGate({super.key});
+  @override
+  Widget build(BuildContext context) => Consumer<AuthProvider>(
+        builder: (context, auth, _) {
+          if (auth.isLoading) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          if (auth.isAuthenticated) {
+            if (auth.user?['role'] == 'ADMIN') {
+              return const AdminDashboardScreen();
+            }
+            return const MainLayout();
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+          });
+          return const LoginScreen();
+        },
+      );
+}

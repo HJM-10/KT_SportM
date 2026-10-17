@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getAllEquipment = async (req, res) => {
@@ -9,7 +10,7 @@ const getAllEquipment = async (req, res) => {
     res.json({ success: true, data: equipment });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -32,7 +33,7 @@ const createEquipment = async (req, res) => {
     res.status(201).json({ success: true, data: eq });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -51,7 +52,7 @@ const updateEquipment = async (req, res) => {
     res.json({ success: true, data: eq });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -61,7 +62,7 @@ const deleteEquipment = async (req, res) => {
     res.json({ success: true, message: 'Equipment deactivated; rental history retained' });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -121,7 +122,7 @@ const rentEquipment = async (req, res) => {
     res.status(201).json({ success: true, data: result });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -135,7 +136,7 @@ const getMyRentals = async (req, res) => {
     res.json({ success: true, data: rentals });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -151,7 +152,7 @@ const getAllRentals = async (req, res) => {
     res.json({ success: true, data: rentals });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 

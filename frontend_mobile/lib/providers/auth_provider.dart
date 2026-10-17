@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/api_errors.dart';
 import '../services/push_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
+  AuthProvider() {
+    _apiService.onSessionExpired = () {
+      _user = null;
+      _isAuthenticated = false;
+      notifyListeners();
+    };
+  }
+  String? lastError;
   bool _isAuthenticated = false;
   bool _isLoading = true;
   Map<String, dynamic>? _user;
@@ -15,7 +24,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> checkAuth() async {
     _isLoading = true;
     notifyListeners();
-    
+
     // The user requested that the app should ALWAYS ask for a password on startup.
     // So we clear any existing token instead of attempting to auto-login.
     await _apiService.storage.delete(key: 'ssh_token');
@@ -40,11 +49,12 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return null;
     } catch (e) {
-      return 'Login failed. Please check credentials.';
+      return apiErrorMessage(e);
     }
   }
 
-  Future<bool> signup(String name, String email, String password, String phone) async {
+  Future<bool> signup(
+      String name, String email, String password, String phone) async {
     try {
       final res = await _apiService.dio.post('/auth/register', data: {
         'name': name,
@@ -66,7 +76,7 @@ class AuthProvider with ChangeNotifier {
 
   void updateUser(Map<String, dynamic> updates) {
     if (_user != null) {
-      _user = { ..._user!, ...updates };
+      _user = {..._user!, ...updates};
       notifyListeners();
     }
   }
@@ -79,5 +89,3 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
-
-

@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const validatePromo = async (req, res) => {
@@ -21,7 +22,7 @@ const validatePromo = async (req, res) => {
     res.json({ success: true, data: promo });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -33,7 +34,7 @@ const getAllPromos = async (req, res) => {
     res.json({ success: true, data: promos });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -61,7 +62,7 @@ const createPromo = async (req, res) => {
     res.status(201).json({ success: true, data: promo });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -79,7 +80,7 @@ const updatePromo = async (req, res) => {
     res.json({ success: true, data: promo });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

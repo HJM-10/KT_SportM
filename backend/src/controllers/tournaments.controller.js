@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getTournaments = async (req, res) => {
@@ -24,7 +25,7 @@ const getTournaments = async (req, res) => {
     res.json({ success: true, data: tournaments });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -42,7 +43,7 @@ const getTournamentById = async (req, res) => {
     res.json({ success: true, data: tournament });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -68,7 +69,7 @@ const createTournament = async (req, res) => {
     res.status(201).json({ success: true, data: tournament });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -91,7 +92,7 @@ const updateTournament = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Tournament not found' });
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -136,7 +137,7 @@ const deleteTournament = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Tournament not found' });
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -199,7 +200,7 @@ const registerForTournament = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Already registered for this tournament' });
     }
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -248,7 +249,7 @@ const manualRegister = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2002') return res.status(409).json({ success: false, message: 'User is already registered for this tournament' });
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 

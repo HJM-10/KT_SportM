@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 const { createNotification } = require('../lib/notifications');
 
@@ -58,7 +59,7 @@ const confirmPayment = async (req, res) => {
     res.json({ success: true, data: updatedPayment });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -71,7 +72,7 @@ const getMyPayments = async (req, res) => {
     res.json({ success: true, data: payments });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -84,7 +85,7 @@ const getAllPayments = async (req, res) => {
     res.json({ success: true, data: payments });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

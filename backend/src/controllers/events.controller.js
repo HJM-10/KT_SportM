@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 const socket = require('../lib/socket');
 
@@ -13,7 +14,7 @@ const getAllEvents = async (req, res) => {
     res.json({ success: true, data: events });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -30,7 +31,7 @@ const getEventById = async (req, res) => {
     res.json({ success: true, data: event });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -61,7 +62,7 @@ const createEvent = async (req, res) => {
     try { socket.getIO().emit('event_updated', event); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -90,7 +91,7 @@ const updateEvent = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Event not found' });
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -119,7 +120,7 @@ const deleteEvent = async (req, res) => {
     res.json({ success: true, message: 'Event deleted successfully' });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -172,7 +173,7 @@ const registerForEvent = async (req, res) => {
   } catch (err) {
     if (err.code === 'P2002') return res.status(409).json({ success: false, message: 'Already registered for this event' });
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 

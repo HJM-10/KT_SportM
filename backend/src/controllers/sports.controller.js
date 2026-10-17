@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 
 const getSports = async (req, res) => {
@@ -10,7 +11,7 @@ const getSports = async (req, res) => {
     res.json({ success: true, data: sports });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -24,7 +25,7 @@ const getSportById = async (req, res) => {
     res.json({ success: true, data: sport });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -40,7 +41,7 @@ const createSport = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Sport already exists' });
     }
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -57,7 +58,7 @@ const updateSport = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Sport not found' });
     }
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -73,7 +74,7 @@ const deleteSport = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Sport not found' });
     }
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 

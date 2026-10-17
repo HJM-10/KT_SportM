@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 const QRCode = require('qrcode');
 const { randomUUID: uuidv4 } = require('node:crypto');
@@ -22,7 +23,7 @@ const getSlots = async (req, res) => {
     res.json({ success: true, data: slots });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -42,7 +43,7 @@ const createSlot = async (req, res) => {
     res.status(201).json({ success: true, data: slot });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -63,7 +64,7 @@ const getMyBookings = async (req, res) => {
     res.json({ success: true, data: bookings });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -87,7 +88,7 @@ const getAllBookings = async (req, res) => {
     res.json({ success: true, data: bookings });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -227,7 +228,7 @@ const createBooking = async (req, res) => {
     try { socket.getIO().emit('booking_updated', { slotId: booking.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -265,7 +266,7 @@ const cancelBooking = async (req, res) => {
     try { socket.getIO().emit('booking_updated', { slotId: booking.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -282,7 +283,7 @@ const getBookingQR = async (req, res) => {
     res.json({ success: true, data: { qrCode: booking.qrCode, qrToken: booking.qrToken, booking } });
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -318,7 +319,7 @@ const scanBooking = async (req, res) => {
     try { socket.getIO().emit('booking_updated', { slotId: updated.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -330,7 +331,7 @@ const confirmBooking = async (req, res) => {
     return require('./payments.controller').confirmPayment(req, res);
   } catch (err) {
     console.error(err);
-    res.status(err.status || 500).json({ success: false, message: err.status ? err.message : 'Server error' });
+    handleError(err, req, res);
   }
 };
 

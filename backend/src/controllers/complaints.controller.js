@@ -1,3 +1,4 @@
+const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
 const { createNotification } = require('../lib/notifications');
 const socket = require('../lib/socket');
@@ -27,7 +28,7 @@ const submitComplaint = async (req, res) => {
     try { socket.getIO().emit('complaint_updated', {}); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -40,7 +41,7 @@ const getMyComplaints = async (req, res) => {
     res.json({ success: true, data: complaints });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -53,7 +54,7 @@ const getAllComplaints = async (req, res) => {
     res.json({ success: true, data: complaints });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
@@ -83,7 +84,7 @@ const updateComplaintStatus = async (req, res) => {
     try { socket.getIO().emit('complaint_updated', {}); } catch (e) {}
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    handleError(err, req, res);
   }
 };
 
