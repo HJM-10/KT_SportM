@@ -16,6 +16,7 @@ const getTournaments = async (req, res) => {
       where,
       include: {
         sport: { select: { id: true, name: true, icon: true } },
+        registrations: { where: { userId: req.user.id }, select: { id: true, payment: { select: { status: true } } } },
         _count: { select: { registrations: true, matches: true } }
       },
       orderBy: { startDate: 'desc' },

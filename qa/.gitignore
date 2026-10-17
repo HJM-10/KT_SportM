@@ -1,0 +1,7 @@
+# Local acceptance-test captures and session helpers.
+evidence/
+android-screen.png
+__pycache__/
+android_driver.py
+android-fixtures.cjs
+finalize-android-qa.cjs

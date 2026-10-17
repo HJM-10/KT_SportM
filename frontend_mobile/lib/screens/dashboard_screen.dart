@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../utils/booking_time.dart';
 import 'slots_screen.dart';
 
 import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
@@ -24,7 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   late TutorialCoachMark tutorialCoachMark;
   List<TargetFocus> targets = [];
-  
+
   // Keys for targets
   final GlobalKey keyStats = GlobalKey();
   final GlobalKey keyFeatures = GlobalKey();
@@ -40,8 +41,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _checkTutorial() async {
     final prefs = await SharedPreferences.getInstance();
-    final bool hasShownTutorial = prefs.getBool('hasShownDashboardTutorial') ?? false;
-    
+    final bool hasShownTutorial =
+        prefs.getBool('hasShownDashboardTutorial') ?? false;
+
     if (!hasShownTutorial) {
       _initTargets();
       _showTutorial();
@@ -63,10 +65,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Quick Stats", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+                  Text("Quick Stats",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 20)),
                   Padding(
                     padding: EdgeInsets.only(top: 10.0),
-                    child: Text("Here you can see your total bookings and upcoming events at a glance.", style: TextStyle(color: Colors.white)),
+                    child: Text(
+                        "Here you can see your total bookings and upcoming events at a glance.",
+                        style: TextStyle(color: Colors.white)),
                   ),
                 ],
               );
@@ -88,10 +96,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Explore Features", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 20)),
+                  Text("Explore Features",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 20)),
                   Padding(
                     padding: EdgeInsets.only(top: 10.0),
-                    child: Text("Easily access Events, Equipment rentals, Memberships, and Complaints.", style: TextStyle(color: Colors.white)),
+                    child: Text(
+                        "Easily access Events, Equipment rentals, Memberships, and Complaints.",
+                        style: TextStyle(color: Colors.white)),
                   ),
                 ],
               );
@@ -115,7 +129,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onClickTarget: (target) {},
         onClickTargetWithTapPosition: (target, tapDetails) {},
         onClickOverlay: (target) {},
-        onSkip: () { return true; },
+        onSkip: () {
+          return true;
+        },
       )..show(context: context);
     });
   }
@@ -134,21 +150,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final res = await _apiService.dio.get('/bookings/my');
       final bookings = res.data['data'] as List;
-      
+
       final recRes = await _apiService.dio.get('/recommendations/slots');
 
+      if (!mounted) return;
       setState(() {
         _totalBookings = bookings.length;
         _upcomingBookings = bookings.where((b) {
-          return b['status'] == 'CONFIRMED' && DateTime.parse(b['slot']['date']).isAfter(DateTime.now());
+          return isUpcomingBooking(
+              Map<String, dynamic>.from(b), DateTime.now());
         }).length;
         if (recRes.data['success']) {
-           _recommendations = recRes.data['data'];
+          _recommendations = recRes.data['data'];
         }
         _isLoading = false;
       });
     } catch (e) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -158,95 +176,128 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Sports Hub', style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+        title: const Text('Smart Sports Hub',
+            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
             onPressed: () => Navigator.pushNamed(context, '/settings'),
           ),
           IconButton(
             icon: const Icon(Icons.notifications),
+            tooltip: 'Notifications',
             onPressed: () => Navigator.pushNamed(context, '/notifications'),
           ),
-          IconButton(icon: const Icon(Icons.receipt_long), tooltip: 'Payments and invoices', onPressed: () => Navigator.pushNamed(context, '/payments')),
+          IconButton(
+              icon: const Icon(Icons.receipt_long),
+              tooltip: 'Payments and invoices',
+              onPressed: () => Navigator.pushNamed(context, '/payments')),
           IconButton(
             icon: const Icon(Icons.logout),
+            tooltip: 'Sign out',
             onPressed: () => context.read<AuthProvider>().logout(),
           ),
         ],
       ),
       extendBodyBehindAppBar: true,
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: Theme.of(context).brightness == Brightness.dark
-                    ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B)]
-                    : [const Color(0xFFF8FAFC), const Color(0xFFE0E7FF)],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: Theme.of(context).brightness == Brightness.dark
+                      ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B)]
+                      : [const Color(0xFFF8FAFC), const Color(0xFFE0E7FF)],
+                ),
               ),
-            ),
-            child: SafeArea(
-              child: RefreshIndicator(
-            onRefresh: _fetchStats,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Welcome,\n${user?['name'] ?? 'User'}!',
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -1),
+              child: SafeArea(
+                child: RefreshIndicator(
+                  onRefresh: _fetchStats,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome,\n${user?['name'] ?? 'User'}!',
+                            style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.w900,
+                                height: 1.1,
+                                letterSpacing: -1),
+                          ),
+                          const SizedBox(height: 32),
+                          Row(
+                            key: keyStats,
+                            children: [
+                              Expanded(
+                                child: _buildStatCard('Total Bookings',
+                                    _totalBookings.toString(), Icons.book),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildStatCard('Upcoming',
+                                    _upcomingBookings.toString(), Icons.event),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                          const Text('Features',
+                              style: TextStyle(
+                                  fontSize: 22, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 20),
+                          GridView.count(
+                            key: keyFeatures,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            crossAxisCount: 4,
+                            childAspectRatio: 0.75,
+                            mainAxisSpacing: 16,
+                            crossAxisSpacing: 16,
+                            children: [
+                              _buildFeatureIcon(
+                                  'Events',
+                                  Icons.event_note,
+                                  () =>
+                                      Navigator.pushNamed(context, '/events')),
+                              _buildFeatureIcon(
+                                  'Equip',
+                                  Icons.fitness_center,
+                                  () => Navigator.pushNamed(
+                                      context, '/equipment')),
+                              _buildFeatureIcon(
+                                  'Members',
+                                  Icons.card_membership,
+                                  () => Navigator.pushNamed(
+                                      context, '/membership')),
+                              _buildFeatureIcon(
+                                  'Help',
+                                  Icons.support_agent,
+                                  () => Navigator.pushNamed(
+                                      context, '/complaints')),
+                            ],
+                          ),
+                          const SizedBox(height: 32),
+                          const Text('Recommended for you',
+                              style: TextStyle(
+                                  fontSize: 22, fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 20),
+                          _buildRecommendations(),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 32),
-                    Row(
-                      key: keyStats,
-                      children: [
-                        Expanded(
-                          child: _buildStatCard('Total Bookings', _totalBookings.toString(), Icons.book),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildStatCard('Upcoming', _upcomingBookings.toString(), Icons.event),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-                    const Text('Features', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 20),
-                    GridView.count(
-                      key: keyFeatures,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 4,
-                      childAspectRatio: 0.75,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                      children: [
-                        _buildFeatureIcon('Events', Icons.event_note, () => Navigator.pushNamed(context, '/events')),
-                        _buildFeatureIcon('Equip', Icons.fitness_center, () => Navigator.pushNamed(context, '/equipment')),
-                        _buildFeatureIcon('Members', Icons.card_membership, () => Navigator.pushNamed(context, '/membership')),
-                        _buildFeatureIcon('Help', Icons.support_agent, () => Navigator.pushNamed(context, '/complaints')),
-                      ],
-                    ),
-                    const SizedBox(height: 32),
-                    const Text('Recommended for you', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 20),
-                    _buildRecommendations(),
-                    const SizedBox(height: 24),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -277,7 +328,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: Icon(icon, color: Colors.white, size: 26),
           ),
           const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
+          Text(title,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -290,14 +344,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: const Color(0xFF6366F1).withValues(alpha: 0.08),
-          border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
+          border:
+              Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
         ),
         child: const Row(
           children: [
             Icon(Icons.auto_awesome, color: Color(0xFF6366F1), size: 28),
             SizedBox(width: 16),
             Expanded(
-              child: Text('Book slots to get intelligent recommendations based on your preferences!', style: TextStyle(fontWeight: FontWeight.w600, height: 1.4)),
+              child: Text(
+                  'Book slots to get intelligent recommendations based on your preferences!',
+                  style: TextStyle(fontWeight: FontWeight.w600, height: 1.4)),
             ),
           ],
         ),
@@ -334,24 +391,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: const Color(0xFF6366F1).withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.sports, color: Color(0xFF6366F1), size: 18),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(Icons.sports,
+                          color: Color(0xFF6366F1), size: 18),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(venue['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    Expanded(
+                        child: Text(venue['name'],
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis)),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(venue['sport']['name'], style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                Text(venue['sport']['name'],
+                    style: const TextStyle(
+                        color: Colors.grey, fontWeight: FontWeight.w500)),
                 const Spacer(),
-                Text('${rec['startTime']} - ${rec['endTime']}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                Text('${rec['startTime']} - ${rec['endTime']}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14)),
                 const SizedBox(height: 12),
                 ElevatedButton(
                   onPressed: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => SlotsScreen(venueId: venue['id']),
+                        builder: (_) => SlotsScreen(
+                            venueId: venue['id'],
+                            initialDate: DateTime.parse(rec['date'])),
                       ),
                     );
                   },
@@ -359,10 +430,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     minimumSize: const Size(double.infinity, 40),
                     backgroundColor: const Color(0xFF6366F1),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     elevation: 0,
                   ),
-                  child: const Text('Book Now', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text('Book Now',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 )
               ],
             ),
@@ -380,7 +453,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDark 
+          colors: isDark
               ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
               : [Colors.white, const Color(0xFFF1F5F9)],
         ),
@@ -409,14 +482,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Icon(icon, size: 32, color: const Color(0xFF6366F1)),
             ),
             const SizedBox(height: 20),
-            Text(value, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, height: 1)),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 36, fontWeight: FontWeight.w900, height: 1)),
             const SizedBox(height: 8),
-            Text(title, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(title,
+                style: const TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14)),
           ],
         ),
       ),
     );
   }
 }
-
-

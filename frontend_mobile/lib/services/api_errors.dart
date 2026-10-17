@@ -9,10 +9,12 @@ bool sessionExpired(DioException error) {
 
 String apiErrorMessage(Object error) {
   if (error is! DioException) return 'Something went wrong. Please try again.';
-  if (error.response == null)
+  if (error.response == null) {
     return 'Cannot reach the server. Check your connection and try again.';
-  if ((error.response?.statusCode ?? 0) >= 500)
+  }
+  if ((error.response?.statusCode ?? 0) >= 500) {
     return 'Service temporarily unavailable. Please try again.';
+  }
   final data = error.response?.data;
   return data is Map && data['message'] is String
       ? data['message'] as String

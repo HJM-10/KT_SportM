@@ -14,7 +14,8 @@ class TournamentsScreen extends StatefulWidget {
   State<TournamentsScreen> createState() => _TournamentsScreenState();
 }
 
-class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<TournamentsScreen> {
+class _TournamentsScreenState extends State<TournamentsScreen>
+    with LiveRefresh<TournamentsScreen> {
   @override
   List<String> get liveResources => ['tournaments'];
   @override
@@ -53,54 +54,63 @@ class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<
   void _showRegistrationDialog(Map<String, dynamic> t) {
     final bool isFree = t['entryFee'] == null || (t['entryFee'] as num) == 0;
     showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Confirm Registration'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Tournament: ${t['name']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 8),
-              if (!isFree)
-                Text('Fee: Rs. ${t['entryFee']}', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))
-              else
-                const Text('Fee: Free', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              Text(isFree 
-                ? 'Would you like to register for this tournament?' 
-                : 'To complete your registration, you will be redirected to our secure payment gateway to pay the fee. Your team spot is only confirmed after the payment is verified.'),
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Confirm Registration'),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tournament: ${t['name']}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 8),
+                if (!isFree)
+                  Text('Fee: Rs. ${t['entryFee']}',
+                      style: const TextStyle(
+                          color: Colors.green, fontWeight: FontWeight.bold))
+                else
+                  const Text('Fee: Free',
+                      style: TextStyle(
+                          color: Colors.green, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 16),
+                Text(isFree
+                    ? 'Would you like to register for this tournament?'
+                    : 'To complete your registration, you will be redirected to our secure payment gateway to pay the fee. Your team spot is only confirmed after the payment is verified.'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _processRegistration(t['id'] as int);
+                },
+                child: Text(isFree ? 'Confirm' : 'Proceed to Pay'),
+              ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _processRegistration(t['id'] as int);
-              },
-              child: Text(isFree ? 'Confirm' : 'Proceed to Pay'),
-            ),
-          ],
-        );
-      }
-    );
+          );
+        });
   }
 
   Future<void> _processRegistration(int tournamentId) async {
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
-    
+
     try {
-      final response = await _apiService.dio.post('/tournaments/$tournamentId/register', data: {
+      final response = await _apiService.dio
+          .post('/tournaments/$tournamentId/register', data: {
         'teamName': '${user['name']}\'s Team',
       });
-      if (response.data['data']['paymentId'] != null) await PaymentService.checkout(response.data['data']['paymentId']);
+      if (response.data['data']['paymentId'] != null) {
+        await PaymentService.checkout(response.data['data']['paymentId']);
+      }
       if (!mounted) return;
       setState(() {
         _registeredIds.add(tournamentId);
@@ -114,7 +124,9 @@ class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text((e as dynamic).response?.data['message'] ?? 'Failed to register')),
+          SnackBar(
+              content: Text((e as dynamic).response?.data['message'] ??
+                  'Failed to register')),
         );
       }
     }
@@ -127,36 +139,54 @@ class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _tournaments.isEmpty
-              ? const Center(child: Text('No tournaments available', style: TextStyle(color: Colors.grey)))
+              ? const Center(
+                  child: Text('No tournaments available',
+                      style: TextStyle(color: Colors.grey)))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _tournaments.length,
                   itemBuilder: (context, index) {
                     final t = _tournaments[index];
-                    final dateStr = DateFormat.yMMMd().format(DateTime.parse(t['startDate']));
-                    
+                    final registrations = (t['registrations'] as List?) ?? [];
+                    final registered = registrations.isNotEmpty ||
+                        _registeredIds.contains(t['id']);
+                    final pending = registrations.isNotEmpty &&
+                        registrations.first['payment']?['status'] == 'PENDING';
+                    final open = t['status'] == 'UPCOMING' &&
+                        ((t['_count']?['registrations'] ?? 0) as num) <
+                            (t['maxTeams'] as num);
+                    final dateStr = DateFormat.yMMMd()
+                        .format(DateTime.parse(t['startDate']));
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                                color: const Color(0xFF6366F1)
+                                    .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(IconHelper.getIcon(t['sport']?['icon']), size: 14, color: const Color(0xFF818CF8)),
+                                  Icon(IconHelper.getIcon(t['sport']?['icon']),
+                                      size: 14, color: const Color(0xFF818CF8)),
                                   const SizedBox(width: 4),
                                   Text(
                                     t['sport']?['name'] ?? '',
-                                    style: const TextStyle(color: Color(0xFF818CF8), fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        color: Color(0xFF818CF8),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
@@ -164,19 +194,26 @@ class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<
                             const SizedBox(height: 12),
                             Text(
                               t['name'],
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
                             ),
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                                const Icon(Icons.calendar_today,
+                                    size: 14, color: Colors.grey),
                                 const SizedBox(width: 4),
-                                Text(dateStr, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                                Text(dateStr,
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 13)),
                                 const SizedBox(width: 16),
-                                const Icon(Icons.people, size: 14, color: Colors.grey),
+                                const Icon(Icons.people,
+                                    size: 14, color: Colors.grey),
                                 const SizedBox(width: 4),
-                                Text('${t['_count']?['registrations'] ?? 0}/${t['maxTeams']} Teams', 
-                                  style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                                Text(
+                                    '${t['_count']?['registrations'] ?? 0}/${t['maxTeams']} Teams',
+                                    style: const TextStyle(
+                                        color: Colors.grey, fontSize: 13)),
                               ],
                             ),
                             const SizedBox(height: 16),
@@ -189,20 +226,37 @@ class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<
                                   t['status'],
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: t['status'] == 'UPCOMING' ? const Color(0xFF6366F1) : 
-                                          (t['status'] == 'ONGOING' ? Colors.orange : Colors.green),
+                                    color: t['status'] == 'UPCOMING'
+                                        ? const Color(0xFF6366F1)
+                                        : (t['status'] == 'ONGOING'
+                                            ? Colors.orange
+                                            : Colors.green),
                                   ),
                                 ),
                                 if (t['status'] == 'UPCOMING')
                                   ElevatedButton(
-                                    onPressed: _registeredIds.contains(t['id']) ? null : () => _showRegistrationDialog(t as Map<String, dynamic>),
+                                    onPressed: registered || !open
+                                        ? null
+                                        : () => _showRegistrationDialog(
+                                            t as Map<String, dynamic>),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: _registeredIds.contains(t['id']) ? Colors.green : const Color(0xFF6366F1),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                      backgroundColor: registered
+                                          ? Colors.green
+                                          : const Color(0xFF6366F1),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8)),
                                     ),
-                                    child: Text(_registeredIds.contains(t['id']) 
-                                        ? 'Registered' 
-                                        : (t['entryFee'] != null && (t['entryFee'] as num) > 0 ? 'Pay Rs. ${t['entryFee']}' : 'Register for Free')),
+                                    child: Text(registered
+                                        ? (pending
+                                            ? 'Pending payment'
+                                            : 'Registered')
+                                        : !open
+                                            ? 'Registration closed'
+                                            : (t['entryFee'] != null &&
+                                                    (t['entryFee'] as num) > 0
+                                                ? 'Pay Rs. ${t['entryFee']}'
+                                                : 'Register for Free')),
                                   ),
                               ],
                             ),
@@ -215,4 +269,3 @@ class _TournamentsScreenState extends State<TournamentsScreen> with LiveRefresh<
     );
   }
 }
-

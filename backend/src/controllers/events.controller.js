@@ -7,6 +7,7 @@ const getAllEvents = async (req, res) => {
     const events = await prisma.event.findMany({
       include: {
         sport: { select: { name: true, icon: true } },
+        registrations: { where: { userId: req.user.id }, select: { id: true, payment: { select: { status: true } } } },
         _count: { select: { registrations: true } }
       },
       orderBy: { startDate: 'asc' }
