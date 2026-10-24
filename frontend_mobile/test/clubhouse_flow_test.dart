@@ -222,7 +222,16 @@ void main() {
   Future<void> capture(WidgetTester tester, String name) async {
     if (!const bool.fromEnvironment('RENDER_CLUBHOUSE')) return;
     await tester.runAsync(() async {
-      for (final sport in ['padel', 'football', 'cricket']) {
+      for (final sport in [
+        'padel-v2',
+        'football',
+        'cricket',
+        'basketball',
+        'chess',
+        'hockey',
+        'polo',
+        'swimming'
+      ]) {
         await precacheImage(
             ResizeImage(AssetImage('assets/clubhouse/$sport.png'), width: 1000),
             boundaryKey.currentContext!);

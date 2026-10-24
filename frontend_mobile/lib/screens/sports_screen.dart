@@ -87,7 +87,10 @@ class _SportsScreenState extends State<SportsScreen>
                               SizedBox(
                                   width: 100,
                                   child: ClubhouseImage(
-                                      sport: sport['name'], height: 110)),
+                                      sport: sport['name'],
+                                      imageUrl: sport['imageUrl'],
+                                      height: 110,
+                                      showCaption: false)),
                               const SizedBox(width: 16),
                               Expanded(
                                   child: Column(

@@ -13,6 +13,8 @@ The approved direction is forest green, warm cream, muted brass, and deep pine d
 
 ## Image assets and provenance
 
+The completed catalogue now includes all eight sports. See [the full sports image set and generation prompts](SPORTS_IMAGES.md) for the latest assets, including the refreshed Padel image.
+
 Generated with the built-in image-generation tool, then copied into the Flutter asset bundle:
 
 - `../frontend_mobile/assets/clubhouse/padel.png`

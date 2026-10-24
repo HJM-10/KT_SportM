@@ -5,6 +5,24 @@ import '../providers/theme_provider.dart';
 const clubhouseForest = Color(0xFF174C36);
 const clubhouseBrass = Color(0xFFB28C45);
 
+/// Bundled category imagery for the complete current sports catalogue.
+String? sportImageAsset(String sport) {
+  final name = sport.trim().toLowerCase();
+  if (name.contains('basketball')) return 'basketball';
+  if (name.contains('chess')) return 'chess';
+  if (name.contains('cricket')) return 'cricket';
+  if (name.contains('football')) return 'football';
+  if (name.contains('hockey')) return 'hockey';
+  if (name.contains('swim')) return 'swimming';
+  if (name.contains('padel') ||
+      name.contains('paddle') ||
+      name.contains('tennis')) {
+    return 'padel-v2';
+  }
+  if (name.contains('polo')) return 'polo';
+  return null;
+}
+
 String clubPrice(dynamic value) {
   final amount = num.tryParse('$value');
   if (amount == null) return 'Price unavailable';
@@ -35,39 +53,41 @@ class ClubhouseImage extends StatelessWidget {
   final String sport;
   final String? imageUrl;
   final double height;
+  final bool showCaption;
   const ClubhouseImage(
-      {super.key, this.sport = 'Padel', this.imageUrl, this.height = 190});
+      {super.key,
+      this.sport = 'Padel',
+      this.imageUrl,
+      this.height = 190,
+      this.showCaption = true});
 
   @override
   Widget build(BuildContext context) {
-    final name = sport.toLowerCase();
-    final asset = name.contains('football')
-        ? 'football'
-        : name.contains('cricket')
-            ? 'cricket'
-            : name.contains('padel') || name.contains('tennis')
-                ? 'padel'
-                : null;
+    final asset = sportImageAsset(sport);
     Widget fallback() => Stack(fit: StackFit.expand, children: [
           if (asset != null)
             Image.asset('assets/clubhouse/$asset.png',
                 fit: BoxFit.cover,
                 cacheWidth: 1000,
                 excludeFromSemantics: true,
+                frameBuilder: (_, child, frame, __) =>
+                    frame == null ? _SportArtwork(sport: sport) : child,
                 errorBuilder: (_, __, ___) => _SportArtwork(sport: sport))
           else
             _SportArtwork(sport: sport),
-          Positioned(
-              right: 10,
-              bottom: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: .65),
-                    borderRadius: BorderRadius.circular(6)),
-                child: const Text('Illustrative image',
-                    style: TextStyle(color: Colors.white, fontSize: 10)),
-              )),
+          if (showCaption)
+            Positioned(
+                right: 10,
+                bottom: 10,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: .65),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: const Text('Illustrative image',
+                      style: TextStyle(color: Colors.white, fontSize: 10)),
+                )),
         ]);
     final uri = Uri.tryParse(imageUrl ?? '');
     final remote = uri != null && ['http', 'https'].contains(uri.scheme);
