@@ -39,9 +39,15 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
     try {
       await _apiService.dio.delete('/sports/$id');
       _fetchSports();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sport deleted')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Sport deleted')));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to delete sport')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete sport')));
+      }
     }
   }
 
@@ -49,42 +55,56 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
     final nameCtrl = TextEditingController(text: sport?['name'] ?? '');
     final descCtrl = TextEditingController(text: sport?['description'] ?? '');
     final iconCtrl = TextEditingController(text: sport?['icon'] ?? '');
-    
+
     showDialog(
       context: context,
       builder: (context) {
         InputDecoration inputDeco(String label) {
           return InputDecoration(
             labelText: label,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
             filled: true,
-            fillColor: Theme.of(context).brightness == Brightness.dark 
-                ? Colors.white.withValues(alpha: 0.05) 
+            fillColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.05)
                 : Colors.black.withValues(alpha: 0.05),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           );
         }
 
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Padding(
             padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(sport == null ? 'Add Sport' : 'Edit Sport', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                Text(sport == null ? 'Add Sport' : 'Edit Sport',
+                    style: const TextStyle(
+                        fontSize: 22, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
-                TextField(controller: nameCtrl, decoration: inputDeco('Name (e.g., Football)')),
+                TextField(
+                    controller: nameCtrl,
+                    decoration: inputDeco('Name (e.g., Football)')),
                 const SizedBox(height: 16),
-                TextField(controller: descCtrl, decoration: inputDeco('Description')),
+                TextField(
+                    controller: descCtrl, decoration: inputDeco('Description')),
                 const SizedBox(height: 16),
-                TextField(controller: iconCtrl, decoration: inputDeco('Icon Name (e.g., sports_tennis)')),
+                TextField(
+                    controller: iconCtrl,
+                    decoration: inputDeco('Icon Name (e.g., sports_tennis)')),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+                    TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel',
+                            style: TextStyle(color: Colors.grey))),
                     const SizedBox(width: 12),
                     ElevatedButton(
                       onPressed: () async {
@@ -92,27 +112,37 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
                           final data = {
                             'name': nameCtrl.text,
                             'description': descCtrl.text,
-                            'icon': iconCtrl.text.isEmpty ? 'sports' : iconCtrl.text,
+                            'icon': iconCtrl.text.isEmpty
+                                ? 'sports'
+                                : iconCtrl.text,
                             'isActive': true,
                           };
                           if (sport == null) {
                             await _apiService.dio.post('/sports', data: data);
                           } else {
-                            await _apiService.dio.put('/sports/${sport['id']}', data: data);
+                            await _apiService.dio
+                                .put('/sports/${sport['id']}', data: data);
                           }
                           if (context.mounted) Navigator.pop(context);
                           _fetchSports();
                         } catch (e) {
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error ${sport == null ? 'adding' : 'editing'} sport')));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(
+                                    'Error ${sport == null ? 'adding' : 'editing'} sport')));
+                          }
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
+                        backgroundColor: const Color(0xFF174C36),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                       ),
-                      child: Text(sport == null ? 'Add Sport' : 'Save Changes', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      child: Text(sport == null ? 'Add Sport' : 'Save Changes',
+                          style: const TextStyle(fontWeight: FontWeight.bold)),
                     )
                   ],
                 )
@@ -142,7 +172,8 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        icon: Icon(Icons.edit,
+                            color: Theme.of(context).colorScheme.primary),
                         onPressed: () => _showAddSportDialog(sport: sport),
                       ),
                       IconButton(

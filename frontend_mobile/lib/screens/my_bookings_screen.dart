@@ -1,266 +1,314 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
-import '../services/payment_service.dart';
 import 'package:intl/intl.dart';
+import '../services/api_service.dart';
+import '../services/api_errors.dart';
+import '../services/payment_service.dart';
+import '../utils/ui_utils.dart';
+import '../utils/booking_time.dart';
+import '../widgets/clubhouse.dart';
 import 'booking_qr_screen.dart';
 import 'write_review_screen.dart';
 import 'slots_screen.dart';
-import '../utils/icon_helper.dart';
-import '../utils/ui_utils.dart';
 
 class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
-
   @override
   State<MyBookingsScreen> createState() => _MyBookingsScreenState();
 }
 
 class _MyBookingsScreenState extends State<MyBookingsScreen> {
-  final ApiService _apiService = ApiService();
+  final _api = ApiService();
   List<dynamic> _bookings = [];
-  bool _isLoading = true;
-
+  bool _loading = true;
+  String? _error;
+  String _filter = 'All';
+  final Set<int> _busy = {};
   @override
   void initState() {
     super.initState();
-    _fetchBookings();
-    _apiService.socket.on('booking_updated', _onBookingUpdated);
+    _fetch();
+    _api.socket.on('booking_updated', _onUpdate);
   }
 
   @override
   void dispose() {
-    _apiService.socket.off('booking_updated', _onBookingUpdated);
+    _api.socket.off('booking_updated', _onUpdate);
     super.dispose();
   }
 
-  void _onBookingUpdated(dynamic data) {
-    if (mounted) {
-      _fetchBookings();
-    }
+  void _onUpdate(dynamic _) {
+    if (mounted) _fetch();
   }
 
-  Future<void> _fetchBookings() async {
+  Future<void> _fetch() async {
     try {
-      final res = await _apiService.dio.get('/bookings/my');
+      final res = await _api.dio.get('/bookings/my');
       if (mounted) {
         setState(() {
           _bookings = res.data['data'];
-          _isLoading = false;
+          _error = null;
         });
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load bookings')),
-        );
-      }
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Could not refresh your bookings.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _cancelBooking(int id) async {
+  Future<void> _cancel(int id) async {
+    if (_busy.contains(id)) return;
     final confirm = await UiUtils.showAnimatedConfirmDialog(
-      context: context,
-      title: 'Cancel Booking?',
-      message: 'Are you sure you want to cancel this booking?',
-      confirmText: 'Yes, Cancel',
-      cancelText: 'No',
-      isDanger: true,
-    );
-
-    if (confirm != true) return;
-
+        context: context,
+        title: 'Cancel booking?',
+        message:
+            'This releases your reserved session. Cancellation rules still apply.',
+        confirmText: 'Cancel booking',
+        cancelText: 'Keep booking',
+        isDanger: true);
+    if (confirm != true || !mounted) return;
+    setState(() => _busy.add(id));
     try {
-      await _apiService.dio.put('/bookings/$id/cancel');
+      await _api.dio.put('/bookings/$id/cancel');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Booking cancelled successfully')),
-      );
-      _fetchBookings();
+          const SnackBar(content: Text('Booking cancelled successfully')));
+      await _fetch();
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text((e as dynamic).response?.data['message'] ?? 'Failed to cancel')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      }
+    } finally {
+      if (mounted) setState(() => _busy.remove(id));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final visible = _bookings
+        .where((b) =>
+            _filter == 'All' ||
+            (_filter == 'Upcoming'
+                ? isUpcomingBooking(
+                    Map<String, dynamic>.from(b), DateTime.now())
+                : b['status'] == 'PENDING_PAYMENT'))
+        .toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('My Bookings')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _fetchBookings,
-              child: _bookings.isEmpty
-                  ? ListView(
-                      children: const [
-                        SizedBox(height: 100),
-                        Center(child: Text('No bookings found', style: TextStyle(color: Colors.grey))),
-                      ],
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _bookings.length,
-                      itemBuilder: (context, index) {
-                        final b = _bookings[index];
-                        final slotDate = b['slot']?['date'] as String?;
-                        final dateStr = slotDate != null
-                            ? DateFormat.yMMMd().format(DateTime.parse(slotDate))
-                            : 'Date TBD';
-                        final isConfirmed = b['status'] == 'CONFIRMED';
-                        final isScanned = b['status'] == 'SCANNED';
-                        final isPending = b['status'] == 'PENDING_PAYMENT';
-                        
-                        Color badgeColor;
-                        Color badgeBg;
-                        if (isConfirmed) { badgeColor = const Color(0xFF818CF8); badgeBg = const Color(0xFF6366F1); }
-                        else if (isScanned) { badgeColor = Colors.green; badgeBg = Colors.green; }
-                        else if (isPending) { badgeColor = Colors.orange; badgeBg = Colors.orange; }
-                        else { badgeColor = Colors.red; badgeBg = Colors.red; }
-                        
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(
+          title: const Text('My Bookings'), actions: const [ThemeToggle()]),
+      body: RefreshIndicator(
+          onRefresh: _fetch,
+          child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              children: [
+                const ClubhouseHeading('Make time for play.',
+                    subtitle:
+                        'Your sessions, from the first serve to the next.'),
+                const SizedBox(height: 20),
+                Wrap(
+                    spacing: 8,
+                    children: ['All', 'Upcoming', 'Pending']
+                        .map((filter) => ChoiceChip(
+                            label: Text(filter),
+                            selected: _filter == filter,
+                            onSelected: (_) =>
+                                setState(() => _filter = filter)))
+                        .toList()),
+                const SizedBox(height: 18),
+                if (_error != null)
+                  ListTile(
+                      title: Text(_error!),
+                      trailing: IconButton(
+                          tooltip: 'Retry bookings',
+                          onPressed: _fetch,
+                          icon: const Icon(Icons.refresh))),
+                if (_loading)
+                  const Center(child: CircularProgressIndicator())
+                else if (visible.isEmpty)
+                  ClubhouseEmpty(
+                      title: 'Room for your next game.',
+                      message: _error != null
+                          ? 'Pull down to try loading your sessions again.'
+                          : 'Your ${_filter == 'All' ? '' : '${_filter.toLowerCase()} '}bookings will appear here.',
+                      icon: Icons.calendar_month_outlined)
+                else
+                  ...visible.map((b) {
+                    final slot = Map<String, dynamic>.from(b['slot']);
+                    final venue = Map<String, dynamic>.from(slot['venue']);
+                    final confirmed = b['status'] == 'CONFIRMED',
+                        scanned = b['status'] == 'SCANNED',
+                        pending = b['status'] == 'PENDING_PAYMENT';
+                    final status = confirmed
+                        ? 'Confirmed'
+                        : scanned
+                            ? 'Checked in'
+                            : pending
+                                ? 'Pending payment'
+                                : 'Cancelled';
+                    final badge = confirmed || scanned
+                        ? colors.primary
+                        : pending
+                            ? colors.secondary
+                            : colors.error;
+                    final busy = _busy.contains(b['id']);
+                    return Card(
+                        margin: const EdgeInsets.only(bottom: 18),
+                        clipBehavior: Clip.antiAlias,
+                        child: Padding(
+                            padding: const EdgeInsets.all(18),
                             child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      '#${b['id']}',
-                                      style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: badgeBg.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        b['status'],
-                                        style: TextStyle(
-                                          color: badgeColor,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Row(
-                                  children: [
-                                    Icon(IconHelper.getIcon(b['slot']['venue']['sport']['icon']), size: 20),
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Wrap(
+                                      spacing: 12,
+                                      runSpacing: 8,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        Text('#${b['id']}',
+                                            style: TextStyle(
+                                                color: colors.onSurfaceVariant,
+                                                fontWeight: FontWeight.w700)),
+                                        Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                                color: badge.withValues(
+                                                    alpha: .12),
+                                                borderRadius:
+                                                    BorderRadius.circular(8)),
+                                            child: Text(status,
+                                                style: TextStyle(
+                                                    color: badge,
+                                                    fontSize: 12,
+                                                    fontWeight:
+                                                        FontWeight.w700))),
+                                      ]),
+                                  const SizedBox(height: 16),
+                                  Text(venue['name'],
+                                      style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800)),
+                                  const SizedBox(height: 10),
+                                  Row(children: [
+                                    Icon(
+                                        sportIcon(
+                                            venue['sport']?['name'] ?? ''),
+                                        size: 18,
+                                        color: colors.secondary),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      b['slot']['venue']['sport']['name'] ?? '',
-                                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                                    const SizedBox(width: 8),
-                                    Text(b['slot']['venue']['name'], style: const TextStyle(color: Colors.grey)),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                                    const SizedBox(width: 8),
-                                    Text(dateStr, style: const TextStyle(color: Colors.grey)),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                                    const SizedBox(width: 8),
-                                    Text('${b['slot']['startTime']} - ${b['slot']['endTime']}', style: const TextStyle(color: Colors.grey)),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                const Divider(color: Colors.white12),
-                                if (isConfirmed || isPending)
-                                  Wrap(children: [
-                                    TextButton(onPressed: () async {
-                                      await Navigator.push(context, MaterialPageRoute(builder: (_) => SlotsScreen(venueId: b['slot']['venueId'], rescheduleBookingId: b['id'])));
-                                      if (mounted) _fetchBookings();
-                                    }, child: const Text('Reschedule')),
-                                    if (isPending) TextButton(onPressed: () => _cancelBooking(b['id']), child: const Text('Cancel reservation')),
+                                    Expanded(
+                                        child: Text(
+                                            venue['sport']?['name'] ?? 'Sport'))
                                   ]),
-                                if (b['status'] == 'PENDING_PAYMENT' && b['payment'] != null)
-                                  TextButton(onPressed: () async {
-                                    try { await PaymentService.checkout(b['payment']['id']); }
-                                    catch (_) { if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Checkout unavailable. Please try again later.'))); }
-                                  }, child: const Text('Pay with Stripe')),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                Text('Rs. ${b['finalPrice'] ?? b['basePrice']}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                                    if (isConfirmed)
-                                      Row(
-                                        children: [
-                                          TextButton(
-                                            onPressed: () => _cancelBooking(b['id']),
-                                            style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          ElevatedButton(
-                                            onPressed: () {
-                                              Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                  builder: (context) => BookingQrScreen(bookingId: b['id']),
-                                                ),
-                                              );
-                                            },
-                                            child: const Text('Show QR'),
-                                          ),
-                                        ],
-                                      ),
-                                    if (b['status'] == 'SCANNED')
+                                  const SizedBox(height: 10),
+                                  Text(
+                                      '${DateFormat.yMMMd().format(DateTime.parse(slot['date']))} · ${slot['startTime']} – ${slot['endTime']}',
+                                      style: TextStyle(
+                                          color: colors.onSurfaceVariant)),
+                                  const Divider(height: 28),
+                                  Text(
+                                      clubPrice(
+                                          b['finalPrice'] ?? b['basePrice']),
+                                      style: const TextStyle(
+                                          fontSize: 21,
+                                          fontWeight: FontWeight.w800)),
+                                  const SizedBox(height: 12),
+                                  Wrap(spacing: 8, runSpacing: 8, children: [
+                                    if (confirmed)
                                       ElevatedButton.icon(
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => WriteReviewScreen(
-                                                bookingId: b['id'],
-                                                venueId: b['slot']['venue']['id'],
-                                                venueName: b['slot']['venue']['name'],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        icon: const Icon(Icons.star_outline, size: 16),
-                                        label: const Text('Review'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(0xFFF59E0B),
-                                          foregroundColor: Colors.black,
-                                        ),
-                                      ),
-                                  ],
-                                )
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-            ),
+                                          onPressed: busy
+                                              ? null
+                                              : () => Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          BookingQrScreen(
+                                                              bookingId:
+                                                                  b['id']))),
+                                          icon: const Icon(Icons.qr_code,
+                                              size: 18),
+                                          label: const Text('Show QR')),
+                                    if (confirmed || pending)
+                                      OutlinedButton(
+                                          onPressed: busy
+                                              ? null
+                                              : () async {
+                                                  await Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(
+                                                          builder: (_) =>
+                                                              SlotsScreen(
+                                                                  venueId: slot[
+                                                                      'venueId'],
+                                                                  rescheduleBookingId:
+                                                                      b['id'],
+                                                                  initialVenue:
+                                                                      venue)));
+                                                  if (mounted) _fetch();
+                                                },
+                                          child: const Text('Reschedule')),
+                                    if (pending && b['payment'] != null)
+                                      ElevatedButton(
+                                          onPressed: busy
+                                              ? null
+                                              : () async {
+                                                  setState(
+                                                      () => _busy.add(b['id']));
+                                                  try {
+                                                    await PaymentService
+                                                        .checkout(
+                                                            b['payment']['id']);
+                                                  } catch (_) {
+                                                    if (context.mounted) {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                              const SnackBar(
+                                                                  content: Text(
+                                                                      'Checkout unavailable. Please try again later.')));
+                                                    }
+                                                  } finally {
+                                                    if (mounted) {
+                                                      setState(() => _busy
+                                                          .remove(b['id']));
+                                                      _fetch();
+                                                    }
+                                                  }
+                                                },
+                                          child:
+                                              const Text('Complete payment')),
+                                    if (scanned)
+                                      OutlinedButton.icon(
+                                          onPressed: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      WriteReviewScreen(
+                                                          bookingId: b['id'],
+                                                          venueId: venue['id'],
+                                                          venueName:
+                                                              venue['name']))),
+                                          icon: const Icon(Icons.star_outline,
+                                              size: 18),
+                                          label: const Text('Review')),
+                                    if (confirmed || pending)
+                                      TextButton(
+                                          onPressed: busy
+                                              ? null
+                                              : () => _cancel(b['id']),
+                                          style: TextButton.styleFrom(
+                                              foregroundColor: colors.error),
+                                          child: Text(busy
+                                              ? 'Please wait…'
+                                              : 'Cancel')),
+                                  ]),
+                                ])));
+                  }),
+              ])),
     );
   }
 }
-
-

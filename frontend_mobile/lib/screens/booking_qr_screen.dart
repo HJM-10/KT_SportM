@@ -25,11 +25,13 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
   Future<void> _fetchQrData() async {
     try {
       final res = await _apiService.dio.get('/bookings/${widget.bookingId}/qr');
+      if (!mounted) return;
       setState(() {
         _bookingData = res.data['data'];
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +58,8 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
                       children: [
                         const Text(
                           'Show this QR code at the venue',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 32),
@@ -67,7 +70,10 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.3),
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                               ),
@@ -83,18 +89,16 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
                         const SizedBox(height: 32),
                         Text(
                           'Booking #${widget.bookingId}',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 24, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _bookingData!['booking']?['slot']?['venue']?['name'] ?? '',
-                          style: const TextStyle(color: Colors.grey, fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Token: ${_bookingData!['qrToken']}',
-                          style: const TextStyle(color: Colors.grey, fontSize: 12),
-                          textAlign: TextAlign.center,
+                          _bookingData!['booking']?['slot']?['venue']
+                                  ?['name'] ??
+                              '',
+                          style:
+                              const TextStyle(color: Colors.grey, fontSize: 16),
                         ),
                         const SizedBox(height: 32),
                         SizedBox(
@@ -103,8 +107,8 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
                           child: ElevatedButton(
                             onPressed: () => Navigator.pop(context),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF16162A),
-                              side: const BorderSide(color: Color(0xFF6366F1)),
+                              side: BorderSide(
+                                  color: Theme.of(context).colorScheme.primary),
                             ),
                             child: const Text('Back to Bookings'),
                           ),
@@ -116,4 +120,3 @@ class _BookingQrScreenState extends State<BookingQrScreen> {
     );
   }
 }
-

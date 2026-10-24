@@ -45,7 +45,9 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text((e as dynamic).response?.data['message'] ?? 'Failed to submit review')),
+        SnackBar(
+            content: Text((e as dynamic).response?.data['message'] ??
+                'Failed to submit review')),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -73,7 +75,8 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
             const SizedBox(height: 32),
 
             // Star Rating
-            const Text('Your Rating', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Your Rating',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             Row(
               children: List.generate(5, (i) {
@@ -85,7 +88,9 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                     child: Icon(
                       Icons.star_rounded,
                       size: 44,
-                      color: star <= _selectedRating ? const Color(0xFFF59E0B) : Colors.grey.shade300,
+                      color: star <= _selectedRating
+                          ? const Color(0xFFF59E0B)
+                          : Colors.grey.shade300,
                     ),
                   ),
                 );
@@ -104,7 +109,8 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
             const SizedBox(height: 32),
 
             // Comment
-            const Text('Comment (Optional)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text('Comment (Optional)',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             TextField(
               controller: _commentController,
@@ -112,7 +118,8 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
               maxLength: 500,
               decoration: InputDecoration(
                 hintText: 'Tell us about the facilities, cleanliness, staff...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 alignLabelWithHint: true,
               ),
             ),
@@ -125,12 +132,15 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: const Color(0xFF174C36),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isSubmitting
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Submit Review', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    : const Text('Submit Review',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -141,12 +151,18 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
 
   String _ratingLabel(int rating) {
     switch (rating) {
-      case 1: return 'Poor';
-      case 2: return 'Fair';
-      case 3: return 'Good';
-      case 4: return 'Very Good';
-      case 5: return 'Excellent';
-      default: return '';
+      case 1:
+        return 'Poor';
+      case 2:
+        return 'Fair';
+      case 3:
+        return 'Good';
+      case 4:
+        return 'Very Good';
+      case 5:
+        return 'Excellent';
+      default:
+        return '';
     }
   }
 }

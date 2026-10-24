@@ -122,7 +122,7 @@ class _EventsScreenState extends State<EventsScreen>
   Color _statusColor(String? status) {
     switch (status) {
       case 'UPCOMING':
-        return const Color(0xFF6366F1);
+        return Theme.of(context).colorScheme.primary;
       case 'ONGOING':
         return Colors.orange;
       case 'COMPLETED':
@@ -253,8 +253,11 @@ class _EventsScreenState extends State<EventsScreen>
                                   // Type label
                                   Text(
                                     _typeLabel(ev['type'] as String?),
-                                    style: const TextStyle(
-                                        color: Color(0xFF818CF8), fontSize: 13),
+                                    style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontSize: 13),
                                   ),
                                   const SizedBox(height: 8),
 
@@ -322,7 +325,7 @@ class _EventsScreenState extends State<EventsScreen>
                                           : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: isUpcoming
-                                            ? const Color(0xFF6366F1)
+                                            ? const Color(0xFF174C36)
                                             : Colors.grey.shade600,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:

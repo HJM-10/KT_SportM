@@ -171,7 +171,9 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1)
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
                                     .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
@@ -179,12 +181,17 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(IconHelper.getIcon(t['sport']?['icon']),
-                                      size: 14, color: const Color(0xFF818CF8)),
+                                      size: 14,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary),
                                   const SizedBox(width: 4),
                                   Text(
                                     t['sport']?['name'] ?? '',
-                                    style: const TextStyle(
-                                        color: Color(0xFF818CF8),
+                                    style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold),
                                   ),
@@ -227,7 +234,7 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: t['status'] == 'UPCOMING'
-                                        ? const Color(0xFF6366F1)
+                                        ? Theme.of(context).colorScheme.primary
                                         : (t['status'] == 'ONGOING'
                                             ? Colors.orange
                                             : Colors.green),
@@ -242,7 +249,7 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: registered
                                           ? Colors.green
-                                          : const Color(0xFF6366F1),
+                                          : const Color(0xFF174C36),
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(8)),

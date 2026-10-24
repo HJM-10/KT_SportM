@@ -1,499 +1,294 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/live_refresh.dart';
 import '../utils/booking_time.dart';
+import '../widgets/clubhouse.dart';
+import '../widgets/venue_card.dart';
+import 'sports_screen.dart';
+import 'venues_screen.dart';
 import 'slots_screen.dart';
-
-import 'package:tutorial_coach_mark/tutorial_coach_mark.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'my_bookings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
-
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  final ApiService _apiService = ApiService();
-  int _totalBookings = 0;
-  int _upcomingBookings = 0;
-  bool _isLoading = true;
-
-  List<dynamic> _recommendations = [];
-
-  late TutorialCoachMark tutorialCoachMark;
-  List<TargetFocus> targets = [];
-
-  // Keys for targets
-  final GlobalKey keyStats = GlobalKey();
-  final GlobalKey keyFeatures = GlobalKey();
-  final GlobalKey keyRecommended = GlobalKey();
-
+class _DashboardScreenState extends State<DashboardScreen>
+    with LiveRefresh<DashboardScreen> {
+  final _api = ApiService();
+  List<dynamic> _sports = [],
+      _venues = [],
+      _recommendations = [],
+      _bookings = [];
+  bool _loading = true;
+  final Set<String> _failed = {};
+  int _version = 0;
+  @override
+  List<String> get liveResources => ['sports', 'venues', 'bookings'];
+  @override
+  Future<void> refreshForLiveUpdates() => _fetch();
   @override
   void initState() {
     super.initState();
-    _fetchStats();
-    _apiService.socket.on('booking_updated', _onDataUpdated);
-    _checkTutorial();
+    _fetch();
+    _api.socket.on('booking_updated', _onUpdate);
   }
 
-  void _checkTutorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    final bool hasShownTutorial =
-        prefs.getBool('hasShownDashboardTutorial') ?? false;
-
-    if (!hasShownTutorial) {
-      _initTargets();
-      _showTutorial();
-      prefs.setBool('hasShownDashboardTutorial', true);
-    }
-  }
-
-  void _initTargets() {
-    targets.add(
-      TargetFocus(
-        identify: "Stats",
-        keyTarget: keyStats,
-        alignSkip: Alignment.topRight,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) {
-              return const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Quick Stats",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 20)),
-                  Padding(
-                    padding: EdgeInsets.only(top: 10.0),
-                    child: Text(
-                        "Here you can see your total bookings and upcoming events at a glance.",
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-    targets.add(
-      TargetFocus(
-        identify: "Features",
-        keyTarget: keyFeatures,
-        alignSkip: Alignment.topRight,
-        contents: [
-          TargetContent(
-            align: ContentAlign.bottom,
-            builder: (context, controller) {
-              return const Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Explore Features",
-                      style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          fontSize: 20)),
-                  Padding(
-                    padding: EdgeInsets.only(top: 10.0),
-                    child: Text(
-                        "Easily access Events, Equipment rentals, Memberships, and Complaints.",
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showTutorial() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (!mounted) return;
-      tutorialCoachMark = TutorialCoachMark(
-        targets: targets,
-        colorShadow: const Color(0xFF16162A),
-        textSkip: "SKIP",
-        paddingFocus: 10,
-        opacityShadow: 0.8,
-        onFinish: () {},
-        onClickTarget: (target) {},
-        onClickTargetWithTapPosition: (target, tapDetails) {},
-        onClickOverlay: (target) {},
-        onSkip: () {
-          return true;
-        },
-      )..show(context: context);
-    });
+  void _onUpdate(dynamic _) {
+    if (mounted) _fetch();
   }
 
   @override
   void dispose() {
-    _apiService.socket.off('booking_updated', _onDataUpdated);
+    _api.socket.off('booking_updated', _onUpdate);
     super.dispose();
   }
 
-  void _onDataUpdated(dynamic data) {
-    if (mounted) _fetchStats();
-  }
-
-  Future<void> _fetchStats() async {
-    try {
-      final res = await _apiService.dio.get('/bookings/my');
-      final bookings = res.data['data'] as List;
-
-      final recRes = await _apiService.dio.get('/recommendations/slots');
-
-      if (!mounted) return;
-      setState(() {
-        _totalBookings = bookings.length;
-        _upcomingBookings = bookings.where((b) {
-          return isUpcomingBooking(
-              Map<String, dynamic>.from(b), DateTime.now());
-        }).length;
-        if (recRes.data['success']) {
-          _recommendations = recRes.data['data'];
-        }
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+  Future<void> _fetch() async {
+    final version = ++_version;
+    final failed = <String>{};
+    Future<List<dynamic>?> get(String path) async {
+      try {
+        final response = await _api.dio.get(path);
+        return response.data['data'] as List;
+      } catch (_) {
+        failed.add(path);
+        return null;
+      }
     }
+
+    final result = await Future.wait([
+      get('/sports'),
+      get('/venues'),
+      get('/recommendations/slots'),
+      get('/bookings/my')
+    ]);
+    if (!mounted || version != _version) return;
+    setState(() {
+      _sports = result[0] ?? _sports;
+      _venues = result[1] ?? _venues;
+      _recommendations = result[2] ?? _recommendations;
+      _bookings = result[3] ?? _bookings;
+      _failed
+        ..clear()
+        ..addAll(failed);
+      _loading = false;
+    });
   }
+
+  void _explore() => Navigator.push(
+      context, MaterialPageRoute(builder: (_) => const SportsScreen()));
+  void _openVenue(Map<String, dynamic> venue, {DateTime? date}) =>
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => SlotsScreen(
+                  venueId: venue['id'],
+                  initialDate: date,
+                  initialVenue: venue)));
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final user = context.watch<AuthProvider>().user;
-
+    final name = (user?['name'] as String? ?? '').trim().split(' ').first;
+    final upcoming = _bookings
+        .where((b) =>
+            isUpcomingBooking(Map<String, dynamic>.from(b), DateTime.now()))
+        .toList()
+      ..sort((a, b) => slotStartsAt(Map<String, dynamic>.from(a['slot']))
+          .compareTo(slotStartsAt(Map<String, dynamic>.from(b['slot']))));
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Smart Sports Hub',
-            style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'Settings',
-            onPressed: () => Navigator.pushNamed(context, '/settings'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications),
+        centerTitle: true,
+        title: const Text('KT Smart Sport Hub',
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        leading: IconButton(
             tooltip: 'Notifications',
-            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-          ),
-          IconButton(
-              icon: const Icon(Icons.receipt_long),
-              tooltip: 'Payments and invoices',
-              onPressed: () => Navigator.pushNamed(context, '/payments')),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: () => context.read<AuthProvider>().logout(),
-          ),
-        ],
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => Navigator.pushNamed(context, '/notifications')),
+        actions: const [ThemeToggle()],
       ),
-      extendBodyBehindAppBar: true,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: Theme.of(context).brightness == Brightness.dark
-                      ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B)]
-                      : [const Color(0xFFF8FAFC), const Color(0xFFE0E7FF)],
-                ),
-              ),
-              child: SafeArea(
-                child: RefreshIndicator(
-                  onRefresh: _fetchStats,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
+      body: RefreshIndicator(
+          onRefresh: _fetch,
+          child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              children: [
+                ClubhouseEntrance(
+                    child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'Welcome,\n${user?['name'] ?? 'User'}!',
-                            style: const TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w900,
-                                height: 1.1,
-                                letterSpacing: -1),
-                          ),
-                          const SizedBox(height: 32),
-                          Row(
-                            key: keyStats,
-                            children: [
-                              Expanded(
-                                child: _buildStatCard('Total Bookings',
-                                    _totalBookings.toString(), Icons.book),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildStatCard('Upcoming',
-                                    _upcomingBookings.toString(), Icons.event),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 32),
-                          const Text('Features',
-                              style: TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 20),
-                          GridView.count(
-                            key: keyFeatures,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: 4,
-                            childAspectRatio: 0.75,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                            children: [
-                              _buildFeatureIcon(
-                                  'Events',
-                                  Icons.event_note,
-                                  () =>
-                                      Navigator.pushNamed(context, '/events')),
-                              _buildFeatureIcon(
-                                  'Equip',
-                                  Icons.fitness_center,
-                                  () => Navigator.pushNamed(
-                                      context, '/equipment')),
-                              _buildFeatureIcon(
-                                  'Members',
-                                  Icons.card_membership,
-                                  () => Navigator.pushNamed(
-                                      context, '/membership')),
-                              _buildFeatureIcon(
-                                  'Help',
-                                  Icons.support_agent,
-                                  () => Navigator.pushNamed(
-                                      context, '/complaints')),
-                            ],
-                          ),
-                          const SizedBox(height: 32),
-                          const Text('Recommended for you',
-                              style: TextStyle(
-                                  fontSize: 22, fontWeight: FontWeight.w800)),
-                          const SizedBox(height: 20),
-                          _buildRecommendations(),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildFeatureIcon(String title, IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF6366F1).withValues(alpha: 0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: Colors.white, size: 26),
-          ),
-          const SizedBox(height: 12),
-          Text(title,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecommendations() {
-    if (_recommendations.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: const Color(0xFF6366F1).withValues(alpha: 0.08),
-          border:
-              Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.2)),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.auto_awesome, color: Color(0xFF6366F1), size: 28),
-            SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                  'Book slots to get intelligent recommendations based on your preferences!',
-                  style: TextStyle(fontWeight: FontWeight.w600, height: 1.4)),
-            ),
-          ],
-        ),
-      );
-    }
-    return SizedBox(
-      height: 180,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: _recommendations.length,
-        itemBuilder: (context, index) {
-          final rec = _recommendations[index];
-          final venue = rec['venue'];
-          final isDark = Theme.of(context).brightness == Brightness.dark;
-          return Container(
-            width: 240,
-            margin: const EdgeInsets.only(right: 16, bottom: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                )
-              ],
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12)),
-                      child: const Icon(Icons.sports,
-                          color: Color(0xFF6366F1), size: 18),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: Text(venue['name'],
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis)),
-                  ],
-                ),
+                      Text('$greeting${name.isEmpty ? '' : ', $name'}.',
+                          style: TextStyle(
+                              color: colors.onSurfaceVariant, fontSize: 16)),
+                      const SizedBox(height: 8),
+                      const Text('Find your next game.',
+                          style: TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              height: 1.05,
+                              letterSpacing: -1.5)),
+                      const SizedBox(height: 12),
+                      Text('Great courts. Good people. More time for play.',
+                          style: TextStyle(
+                              color: colors.onSurfaceVariant, height: 1.4)),
+                    ])),
+                const SizedBox(height: 22),
+                if (_failed.isNotEmpty)
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Card(
+                          child: ListTile(
+                        leading: Icon(Icons.wifi_off_outlined,
+                            color: colors.secondary),
+                        title: const Text('Some information could not refresh'),
+                        subtitle: const Text('Pull down to try again.'),
+                        trailing: IconButton(
+                            tooltip: 'Retry',
+                            onPressed: _fetch,
+                            icon: const Icon(Icons.refresh)),
+                      ))),
+                if (_loading)
+                  const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator())),
+                if (_sports.isNotEmpty)
+                  SizedBox(
+                      height: 92,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _sports.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 10),
+                        itemBuilder: (_, index) {
+                          final sport = _sports[index];
+                          return Material(
+                              color: colors.primaryContainer,
+                              borderRadius: BorderRadius.circular(14),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => VenuesScreen(
+                                            sportId: sport['id'],
+                                            sportName: sport['name']))),
+                                child: SizedBox(
+                                    width: 84,
+                                    child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(sportIcon(sport['name']),
+                                              color: colors.onPrimaryContainer,
+                                              size: 28),
+                                          const SizedBox(height: 8),
+                                          Text(sport['name'],
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  color:
+                                                      colors.onPrimaryContainer,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600)),
+                                        ])),
+                              ));
+                        },
+                      )),
+                if (upcoming.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  Card(
+                      margin: EdgeInsets.zero,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 18, vertical: 8),
+                        leading: Icon(Icons.calendar_month_outlined,
+                            color: colors.secondary),
+                        title: Text(upcoming.first['slot']['venue']['name'],
+                            style:
+                                const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text(
+                            'Next booking · ${DateFormat.MMMd().format(DateTime.parse(upcoming.first['slot']['date']))} · ${upcoming.first['slot']['startTime']}'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const MyBookingsScreen())),
+                      )),
+                ],
+                const SizedBox(height: 24),
+                Row(children: [
+                  const Expanded(
+                      child: Text('Find your court',
+                          style: TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -.5))),
+                  TextButton(onPressed: _explore, child: const Text('See all'))
+                ]),
                 const SizedBox(height: 8),
-                Text(venue['sport']['name'],
-                    style: const TextStyle(
-                        color: Colors.grey, fontWeight: FontWeight.w500)),
-                const Spacer(),
-                Text('${rec['startTime']} - ${rec['endTime']}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14)),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SlotsScreen(
-                            venueId: venue['id'],
-                            initialDate: DateTime.parse(rec['date'])),
-                      ),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 40),
-                    backgroundColor: const Color(0xFF6366F1),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
+                if (!_loading && _venues.isEmpty)
+                  ClubhouseEmpty(
+                    title: _failed.contains('/venues')
+                        ? 'Courts could not load'
+                        : 'More games ahead',
+                    message: _failed.contains('/venues')
+                        ? 'Check your connection and try again.'
+                        : 'Venues will appear here when they are available.',
+                    onRetry: _failed.contains('/venues') ? _fetch : null,
                   ),
-                  child: const Text('Book Now',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                )
-              ],
-            ),
-          );
-        },
-      ),
+                ..._venues.take(3).map((v) => VenueCard(
+                    venue: Map<String, dynamic>.from(v),
+                    onBook: () => _openVenue(Map<String, dynamic>.from(v)))),
+                if (_recommendations.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const ClubhouseHeading('A session for you',
+                      subtitle: 'Available sessions based on your activity.'),
+                  const SizedBox(height: 16),
+                  ..._recommendations.take(3).map((rec) => VenueCard(
+                        venue: Map<String, dynamic>.from(rec['venue']),
+                        session:
+                            '${DateFormat.MMMd().format(DateTime.parse(rec['date']))} · ${rec['startTime']} – ${rec['endTime']}',
+                        onBook: () => _openVenue(
+                            Map<String, dynamic>.from(rec['venue']),
+                            date: DateTime.parse(rec['date'])),
+                      )),
+                ],
+                const SizedBox(height: 8),
+                const ClubhouseHeading('Beyond the court',
+                    subtitle: 'Find your people. Make it a regular thing.'),
+                const SizedBox(height: 16),
+                Wrap(spacing: 10, runSpacing: 10, children: [
+                  _feature('Tournaments', Icons.emoji_events_outlined,
+                      '/tournaments'),
+                  _feature('Matches', Icons.sports, '/matches'),
+                  _feature('Events', Icons.event_outlined, '/events'),
+                  _feature('Equipment', Icons.sports_tennis, '/equipment'),
+                  _feature('Membership', Icons.card_membership, '/membership'),
+                  _feature('Support', Icons.support_agent, '/complaints'),
+                ]),
+              ])),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-              : [Colors.white, const Color(0xFFF1F5F9)],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-        border: Border.all(
-          color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-          width: 1,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 32, color: const Color(0xFF6366F1)),
-            ),
-            const SizedBox(height: 20),
-            Text(value,
-                style: const TextStyle(
-                    fontSize: 36, fontWeight: FontWeight.w900, height: 1)),
-            const SizedBox(height: 8),
-            Text(title,
-                style: const TextStyle(
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14)),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _feature(String label, IconData icon, String route) => ActionChip(
+        avatar: Icon(icon,
+            size: 18, color: Theme.of(context).colorScheme.secondary),
+        label: Text(label),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        onPressed: () => Navigator.pushNamed(context, route),
+      );
 }

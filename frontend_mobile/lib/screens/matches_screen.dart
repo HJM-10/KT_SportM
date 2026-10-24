@@ -10,7 +10,8 @@ class MatchesScreen extends StatefulWidget {
   State<MatchesScreen> createState() => _MatchesScreenState();
 }
 
-class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesScreen> {
+class _MatchesScreenState extends State<MatchesScreen>
+    with LiveRefresh<MatchesScreen> {
   @override
   List<String> get liveResources => ['matches'];
   @override
@@ -51,7 +52,9 @@ class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesS
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _matches.isEmpty
-              ? const Center(child: Text('No matches scheduled', style: TextStyle(color: Colors.grey)))
+              ? const Center(
+                  child: Text('No matches scheduled',
+                      style: TextStyle(color: Colors.grey)))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _matches.length,
@@ -59,12 +62,14 @@ class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesS
                     final m = _matches[index];
                     final scheduledRaw = m['scheduledAt'] as String?;
                     final dateStr = scheduledRaw != null
-                        ? DateFormat('MMM d, yyyy – h:mm a').format(DateTime.parse(scheduledRaw))
+                        ? DateFormat('MMM d, yyyy – h:mm a')
+                            .format(DateTime.parse(scheduledRaw))
                         : 'TBD';
-                    
+
                     return Card(
                       margin: const EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
@@ -73,21 +78,33 @@ class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesS
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
                                     m['tournament']?['name'] ?? 'Tournament',
-                                    style: const TextStyle(color: Color(0xFF06B6D4), fontSize: 12, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                                 Row(
                                   children: [
-                                    const Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                                    const Icon(Icons.calendar_today,
+                                        size: 14, color: Colors.grey),
                                     const SizedBox(width: 4),
-                                    Text(dateStr, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                    Text(dateStr,
+                                        style: const TextStyle(
+                                            color: Colors.grey, fontSize: 12)),
                                   ],
                                 ),
                               ],
@@ -100,24 +117,37 @@ class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesS
                                   child: Text(
                                     (m['team1'] as String?) ?? 'TBD',
                                     textAlign: TextAlign.right,
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                                 const SizedBox(width: 16),
-                                if (m['team1Score'] != null && m['team2Score'] != null) ...[
+                                if (m['team1Score'] != null &&
+                                    m['team2Score'] != null) ...[
                                   Text(
                                     '${m['team1Score']} - ${m['team2Score']}',
-                                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF818CF8)),
+                                    style: TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary),
                                   ),
                                 ] else ...[
-                                  const Text('VS', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                                  const Text('VS',
+                                      style: TextStyle(
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.bold)),
                                 ],
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Text(
                                     (m['team2'] as String?) ?? 'TBD',
                                     textAlign: TextAlign.left,
-                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                               ],
@@ -126,10 +156,12 @@ class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesS
                               const SizedBox(height: 16),
                               const Divider(color: Colors.white12),
                               const SizedBox(height: 8),
-                                Text(
-                                  'Winner: ${m['winner'] == 'team1' ? ((m['team1'] as String?) ?? 'Team 1') : m['winner'] == 'team2' ? ((m['team2'] as String?) ?? 'Team 2') : 'Draw'}',
-                                  style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
-                                ),
+                              Text(
+                                'Winner: ${m['winner'] == 'team1' ? ((m['team1'] as String?) ?? 'Team 1') : m['winner'] == 'team2' ? ((m['team2'] as String?) ?? 'Team 2') : 'Draw'}',
+                                style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontStyle: FontStyle.italic),
+                              ),
                             ]
                           ],
                         ),
@@ -140,4 +172,3 @@ class _MatchesScreenState extends State<MatchesScreen> with LiveRefresh<MatchesS
     );
   }
 }
-

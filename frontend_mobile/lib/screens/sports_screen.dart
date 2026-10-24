@@ -1,116 +1,116 @@
-import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
+import '../services/live_refresh.dart';
 import '../services/api_service.dart';
-import '../utils/icon_helper.dart';
+import '../widgets/clubhouse.dart';
 import 'venues_screen.dart';
 
 class SportsScreen extends StatefulWidget {
   const SportsScreen({super.key});
-
   @override
   State<SportsScreen> createState() => _SportsScreenState();
 }
 
-class _SportsScreenState extends State<SportsScreen> with LiveRefresh<SportsScreen> {
+class _SportsScreenState extends State<SportsScreen>
+    with LiveRefresh<SportsScreen> {
+  final _api = ApiService();
+  List<dynamic> _sports = [];
+  bool _loading = true;
+  String? _error;
   @override
   List<String> get liveResources => ['sports'];
   @override
-  Future<void> refreshForLiveUpdates() => _fetchSports();
-  final ApiService _apiService = ApiService();
-  List<dynamic> _sports = [];
-  bool _isLoading = true;
-
+  Future<void> refreshForLiveUpdates() => _fetch();
   @override
   void initState() {
     super.initState();
-    _fetchSports();
+    _fetch();
   }
 
-  Future<void> _fetchSports() async {
+  Future<void> _fetch() async {
     try {
-      final res = await _apiService.dio.get('/sports');
+      final res = await _api.dio.get('/sports');
       if (mounted) {
         setState(() {
           _sports = res.data['data'];
-          _isLoading = false;
+          _error = null;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load sports')),
-        );
+        setState(() => _error = 'Check your connection and try again.');
       }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sports & Venues')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _sports.isEmpty
-              ? const Center(child: Text('No sports available', style: TextStyle(color: Colors.grey)))
-              : GridView.builder(
-                  padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: _sports.length,
-                  itemBuilder: (context, index) {
-                    final sport = _sports[index];
-                    return InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => VenuesScreen(
-                              sportId: sport['id'],
-                              sportName: sport['name'],
-                            ),
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+            title: const Text('Sports & venues'),
+            actions: const [ThemeToggle()]),
+        body: RefreshIndicator(
+            onRefresh: _fetch,
+            child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                children: [
+                  const ClubhouseHeading('What’s your game?',
+                      subtitle:
+                          'Find a familiar favourite. Try something new.'),
+                  const SizedBox(height: 24),
+                  if (_loading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_error != null)
+                    ClubhouseEmpty(
+                        title: 'Sports could not load',
+                        message: _error!,
+                        onRetry: _fetch)
+                  else if (_sports.isEmpty)
+                    const ClubhouseEmpty(
+                        title: 'More games ahead',
+                        message: 'New sports will appear here when available.')
+                  else
+                    ..._sports.map((sport) => Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: Card(
+                          clipBehavior: Clip.antiAlias,
+                          margin: EdgeInsets.zero,
+                          child: InkWell(
+                            onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => VenuesScreen(
+                                        sportId: sport['id'],
+                                        sportName: sport['name']))),
+                            child: Row(children: [
+                              SizedBox(
+                                  width: 100,
+                                  child: ClubhouseImage(
+                                      sport: sport['name'], height: 110)),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                    Text(sport['name'],
+                                        style: const TextStyle(
+                                            fontSize: 21,
+                                            fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                        '${sport['_count']?['venues'] ?? 0} venues',
+                                        style: TextStyle(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onSurfaceVariant)),
+                                  ])),
+                              const Icon(Icons.arrow_forward, size: 20),
+                              const SizedBox(width: 16),
+                            ]),
                           ),
-                        );
-                      },
-                      child: Card(
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              IconHelper.getIcon(sport['icon']),
-                              size: 48,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              sport['name'],
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${sport['_count']?['venues'] ?? 0} Venues',
-                              style: const TextStyle(color: Colors.grey, fontSize: 14),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ),
-                    );
-                  },
-                ),
-    );
-  }
+                        ))),
+                ])),
+      );
 }
-

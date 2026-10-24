@@ -22,7 +22,8 @@ class AdminDashboardScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Dashboard', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text('Admin Dashboard',
+            style: TextStyle(fontWeight: FontWeight.w800)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -43,8 +44,8 @@ class AdminDashboardScreen extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: isDark
-                ? [const Color(0xFF0F172A), const Color(0xFF1E1B4B)]
-                : [const Color(0xFFF8FAFC), const Color(0xFFE0E7FF)],
+                ? [const Color(0xFF081C14), const Color(0xFF10271E)]
+                : [const Color(0xFFF5F3E9), const Color(0xFFFFFDF7)],
           ),
         ),
         child: SafeArea(
@@ -55,10 +56,16 @@ class AdminDashboardScreen extends StatelessWidget {
               children: [
                 Text(
                   'Welcome, Admin\n${user?['name'] ?? ''}!',
-                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: -1),
+                  style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                      letterSpacing: -1),
                 ),
                 const SizedBox(height: 32),
-                const Text('Management Features', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                const Text('Management Features',
+                    style:
+                        TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 20),
                 GridView.count(
                   shrinkWrap: true,
@@ -68,16 +75,39 @@ class AdminDashboardScreen extends StatelessWidget {
                   mainAxisSpacing: 16,
                   crossAxisSpacing: 16,
                   children: [
-                    _buildFeatureCard(context, 'Sports', Icons.sports_soccer, Colors.orange, screen: const AdminSportsScreen()),
-                    _buildFeatureCard(context, 'Venues', Icons.stadium, Colors.blue, screen: const AdminVenuesScreen()),
-                    _buildFeatureCard(context, 'Users', Icons.people, Colors.green, screen: const AdminUsersScreen()),
-                    _buildFeatureCard(context, 'Bookings', Icons.book_online, Colors.purple, screen: const AdminBookingsScreen()),
-                    _buildFeatureCard(context, 'Tournaments', Icons.emoji_events, Colors.amber, screen: const AdminTournamentsScreen()),
-                    _buildFeatureCard(context, 'Events', Icons.event, Colors.cyan, screen: const AdminEventsScreen()),
-                    _buildFeatureCard(context, 'Payments', Icons.payment, Colors.teal, screen: const PaymentsScreen(admin: true)),
-                    _buildFeatureCard(context, 'Fixtures', Icons.sports, Colors.indigo, screen: const FixturesScreen()),
-                    _buildFeatureCard(context, 'Check-in', Icons.qr_code_scanner, Colors.blueGrey, screen: const CheckInScreen()),
-                    _buildFeatureCard(context, 'Reports', Icons.bar_chart, Colors.redAccent, screen: const AdminReportsScreen()),
+                    _buildFeatureCard(
+                        context, 'Sports', Icons.sports_soccer, Colors.orange,
+                        screen: const AdminSportsScreen()),
+                    _buildFeatureCard(context, 'Venues', Icons.stadium,
+                        Theme.of(context).colorScheme.primary,
+                        screen: const AdminVenuesScreen()),
+                    _buildFeatureCard(
+                        context, 'Users', Icons.people, Colors.green,
+                        screen: const AdminUsersScreen()),
+                    _buildFeatureCard(context, 'Bookings', Icons.book_online,
+                        Theme.of(context).colorScheme.primary,
+                        screen: const AdminBookingsScreen()),
+                    _buildFeatureCard(context, 'Tournaments',
+                        Icons.emoji_events, Colors.amber,
+                        screen: const AdminTournamentsScreen()),
+                    _buildFeatureCard(context, 'Events', Icons.event,
+                        Theme.of(context).colorScheme.primary,
+                        screen: const AdminEventsScreen()),
+                    _buildFeatureCard(
+                        context, 'Payments', Icons.payment, Colors.teal,
+                        screen: const PaymentsScreen(admin: true)),
+                    _buildFeatureCard(context, 'Fixtures', Icons.sports,
+                        Theme.of(context).colorScheme.primary,
+                        screen: const FixturesScreen()),
+                    _buildFeatureCard(
+                        context,
+                        'Check-in',
+                        Icons.qr_code_scanner,
+                        Theme.of(context).colorScheme.primary,
+                        screen: const CheckInScreen()),
+                    _buildFeatureCard(
+                        context, 'Reports', Icons.bar_chart, Colors.redAccent,
+                        screen: const AdminReportsScreen()),
                   ],
                 ),
               ],
@@ -88,7 +118,9 @@ class AdminDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildFeatureCard(BuildContext context, String title, IconData icon, Color color, {String? route, Widget? screen}) {
+  Widget _buildFeatureCard(
+      BuildContext context, String title, IconData icon, Color color,
+      {String? route, Widget? screen}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return InkWell(
       onTap: () {
@@ -106,7 +138,7 @@ class AdminDashboardScreen extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+          color: isDark ? Theme.of(context).colorScheme.surface : Colors.white,
           boxShadow: [
             BoxShadow(
               color: color.withValues(alpha: isDark ? 0.2 : 0.1),
