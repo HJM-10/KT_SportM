@@ -18,7 +18,7 @@ The Generate Fixtures screen now has labels outside the fields, consistent verti
 ## Checks
 
 - Backend: **47 tests across 7 suites passed**.
-- Flutter: **24 tests passed**, including four Fixtures layout cases; analyzer clean.
+- Flutter: **30 tests passed**, including four Fixtures layout cases and six entry-pass checks; analyzer clean.
 - MariaDB/API acceptance: **9 groups passed**, covering actual persistence and concurrent requests. Provider responses in these checks are simulated; no money moves.
 - React compatibility build passed. The redesigned interface demonstrated to the user is Flutter at **http://localhost:5173**, not the separate React interface.
 - `git diff --check` passed.
@@ -44,3 +44,7 @@ Cash receipts and cash refunds shown in the preview are simulated demo records. 
 Evidence is saved in `qa/evidence/checklist-*.png`; backend execution details are in `qa/checklist-unit-tests.log` and `qa/checklist-acceptance.log`.
 
 The final persisted state was independently checked and saved in `qa/evidence/checklist-final-state.json`. It confirms both tournament champions, released cancelled/expired booking slots, completed booking and event refunds, retained attendance, and automatic expiry of the unpaid manual team entry.
+
+## Entry-pass design follow-up
+
+The entry verification page now uses a compact branded pass card, a separate code form with an explicit Paste action, readable errors, and a player/session receipt after successful check-in. Arena Desk icons retain their square proportions even in full-width lists. Tests cover narrow layouts in both themes with enlarged text, explicit verification before check-in, QR-token parsing, rejected passes, and paste without accidental check-in. Android revision: **1.0.2 (build 3)**.

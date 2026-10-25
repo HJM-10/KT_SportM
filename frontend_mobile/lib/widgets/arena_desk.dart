@@ -32,15 +32,18 @@ class ArenaIcon extends StatelessWidget {
   final Color? color;
   const ArenaIcon(this.symbol, {super.key, this.size = 24, this.color});
   @override
-  Widget build(BuildContext context) => SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-          painter: _ArenaIconPainter(
-              symbol,
-              color ??
-                  IconTheme.of(context).color ??
-                  Theme.of(context).colorScheme.onSurface)));
+  Widget build(BuildContext context) => Center(
+      widthFactor: 1,
+      heightFactor: 1,
+      child: SizedBox(
+          width: size,
+          height: size,
+          child: CustomPaint(
+              painter: _ArenaIconPainter(
+                  symbol,
+                  color ??
+                      IconTheme.of(context).color ??
+                      Theme.of(context).colorScheme.onSurface))));
 }
 
 class _ArenaIconPainter extends CustomPainter {
