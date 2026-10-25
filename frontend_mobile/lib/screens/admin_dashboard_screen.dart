@@ -387,6 +387,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   List<Widget> _overview() {
     final colors = Theme.of(context).colorScheme;
     final summary = _data!['summary'];
+    final scheduleVenues = [..._venues]..sort((a, b) {
+        int priority(Map<String, dynamic> venue) {
+          final slots = arenaMaps(venue['slots']);
+          return slots.any((slot) => slotBooking(slot) != null)
+              ? 2
+              : slots.isNotEmpty
+                  ? 1
+                  : 0;
+        }
+
+        final rank = priority(b).compareTo(priority(a));
+        return rank != 0
+            ? rank
+            : (a['name'] as String).compareTo(b['name'] as String);
+      });
     final name =
         (context.watch<AuthProvider>().user?['name'] as String? ?? 'Admin')
             .trim()
@@ -399,6 +414,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         .take(4)
         .toList();
     return [
+      if (_bookings.any((b) =>
+          (b['notes'] as String? ?? '').startsWith('ARENA_DESK_DEMO'))) ...[
+        Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const ArenaStatus('Demo preview'),
+              Text('Sample bookings and simulated payments',
+                  style:
+                      TextStyle(color: colors.onSurfaceVariant, fontSize: 11))
+            ]),
+        const SizedBox(height: 8),
+      ],
       const SizedBox(height: 12),
       ClipRRect(
           borderRadius: BorderRadius.circular(16),
@@ -437,7 +466,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           action: 'All courts', onTap: () => setState(() => _tab = 2)),
       const SizedBox(height: 12),
       ArenaSchedule(
-          venues: _venues.take(4).toList(),
+          venues: scheduleVenues.take(4).toList(),
           date: arenaDate(_date),
           now: _now,
           onSlot: _slot),
@@ -446,8 +475,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         final items = [
           _stat('${summary['bookings']}', 'Bookings', ArenaSymbol.calendar,
               'Excludes cancelled'),
-          _stat(clubPrice(summary['collected']), 'Gross collected',
-              ArenaSymbol.money, '${summary['paymentCount']} paid records')
+          _stat(
+              'PKR ${NumberFormat('#,##0.##').format(summary['collected'] ?? 0)}',
+              'Gross collected',
+              ArenaSymbol.money,
+              '${summary['paymentCount']} paid records')
         ];
         if (constraints.maxWidth < 310 ||
             MediaQuery.textScalerOf(context).scale(1) > 1.2) {
@@ -643,7 +675,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               if (!compact &&
                   (booking['notes'] as String? ?? '').isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(booking['notes'],
+                Text(
+                    (booking['notes'] as String).startsWith('ARENA_DESK_DEMO')
+                        ? 'Demo preview booking. No real money collected.'
+                        : booking['notes'],
                     style: TextStyle(color: colors.onSurfaceVariant))
               ],
               if (status == 'PENDING_PAYMENT' || canCheckIn) ...[

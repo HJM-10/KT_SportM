@@ -39,4 +39,4 @@ flutter test --no-pub --dart-define=RENDER_ARENA_DESK=true test/arena_desk_test.
 flutter test --no-pub
 ```
 
-No new Android APK was built or installed in this implementation pass, as requested. For the next Android step, restart the local backend first so it loads the new Arena Desk route, then build the customer/admin Flutter app with the existing local API address and USB forwarding setup.
+The Android debug app was subsequently built and installed on the connected Samsung Galaxy A72 at the user's request. The API was restarted and its Arena Desk route was verified against the actual isolated local database. The user then requested a populated visual preview; see [DEMO_PREVIEW.md](DEMO_PREVIEW.md) for the additive fixture script and simulated payment data. These phone checks supplement the earlier widget checks; a full final Flutter test rerun remains pending.
