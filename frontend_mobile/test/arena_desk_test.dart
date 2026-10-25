@@ -353,7 +353,9 @@ void main() {
       (tester) async {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await mount(tester);
+    await mount(tester,
+        screen: AdminDashboardScreen(
+            now: () => DateTime.utc(2026, 10, 25, 13, 15)));
     await tester.tap(find.text('Bookings').last);
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Record payment'));

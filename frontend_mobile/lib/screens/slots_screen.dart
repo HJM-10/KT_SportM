@@ -487,6 +487,10 @@ class _SlotsScreenState extends State<SlotsScreen> {
                             Text('${_duration(selected)} minutes',
                                 style:
                                     TextStyle(color: colors.onSurfaceVariant)),
+                            const SizedBox(height: 12),
+                            Text('Your entry QR is valid during this session. '
+                                'Arrive before ${_time(selected['endTime'])} PKT; '
+                                'the pass expires when the session ends.'),
                             const Divider(height: 28),
                             Row(children: [
                               Expanded(

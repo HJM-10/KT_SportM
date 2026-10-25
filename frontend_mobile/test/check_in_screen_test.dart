@@ -1,13 +1,49 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:smart_sports_hub/providers/theme_provider.dart';
 import 'package:smart_sports_hub/screens/check_in_screen.dart';
 import 'package:smart_sports_hub/services/api_service.dart';
 import 'package:smart_sports_hub/widgets/arena_desk.dart';
+
+class _Camera extends MobileScannerPlatform {
+  final captures = StreamController<BarcodeCapture?>.broadcast();
+  bool deny = false;
+  int stops = 0;
+  @override
+  Stream<BarcodeCapture?> get barcodesStream => captures.stream;
+  @override
+  Stream<TorchState> get torchStateStream => const Stream.empty();
+  @override
+  Stream<double> get zoomScaleStateStream => const Stream.empty();
+  @override
+  Future<MobileScannerViewAttributes> start(StartOptions options) async {
+    if (deny) {
+      throw const MobileScannerException(
+          errorCode: MobileScannerErrorCode.permissionDenied);
+    }
+    return const MobileScannerViewAttributes(
+        cameraDirection: CameraFacing.back,
+        currentTorchMode: TorchState.off,
+        size: Size(640, 480),
+        numberOfCameras: 1);
+  }
+
+  @override
+  Widget buildCameraView() => const SizedBox.expand();
+  @override
+  Future<void> stop() async {
+    stops++;
+  }
+
+  @override
+  Future<void> dispose() async {}
+}
 
 class _EntryApi implements HttpClientAdapter {
   final requests = <RequestOptions>[];
@@ -79,12 +115,64 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('Camera capture fills code once and requires explicit check-in',
+      (tester) async {
+    final original = MobileScannerPlatform.instance;
+    final camera = _Camera();
+    MobileScannerPlatform.instance = camera;
+    addTearDown(() async {
+      MobileScannerController.resetPlatformSessionOwner();
+      MobileScannerPlatform.instance = original;
+      await camera.captures.close();
+    });
+    await mount(tester);
+    await tester.tap(find.text('Scan QR code'));
+    await tester.pumpAndSettle();
+    const capture =
+        BarcodeCapture(barcodes: [Barcode(rawValue: 'camera-entry')]);
+    camera.captures.add(capture);
+    camera.captures.add(capture);
+    await tester.pumpAndSettle();
+    expect(find.text('Scan entry pass'), findsNothing);
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('entry-code')))
+            .controller!
+            .text,
+        'camera-entry');
+    expect(api.requests, isEmpty);
+    expect(camera.stops, greaterThanOrEqualTo(1));
+    await verify(tester);
+    expect(api.requests.single.data, {'qrToken': 'camera-entry'});
+  });
+
+  testWidgets('Denied camera keeps a manual-entry escape route',
+      (tester) async {
+    final original = MobileScannerPlatform.instance;
+    final camera = _Camera()..deny = true;
+    MobileScannerPlatform.instance = camera;
+    addTearDown(() async {
+      MobileScannerController.resetPlatformSessionOwner();
+      MobileScannerPlatform.instance = original;
+      await camera.captures.close();
+    });
+    await mount(tester);
+    await tester.tap(find.text('Scan QR code'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Camera unavailable'), findsOneWidget);
+    await tester.tap(find.text('Enter code instead'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('entry-code')), findsOneWidget);
+    expect(api.requests, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Arena icons keep their proportions in a full-width list',
       (tester) async {
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
-            body:
-                ListView(children: const [ArenaIcon(ArenaSymbol.scan, size: 48)]))));
+            body: ListView(
+                children: const [ArenaIcon(ArenaSymbol.scan, size: 48)]))));
     final paint = find.descendant(
         of: find.byType(ArenaIcon), matching: find.byType(CustomPaint));
     expect(tester.getSize(paint), const Size(48, 48));

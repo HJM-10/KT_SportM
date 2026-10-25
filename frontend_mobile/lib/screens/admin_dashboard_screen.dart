@@ -21,6 +21,7 @@ import 'admin_reports_screen.dart';
 import 'payments_screen.dart';
 import 'fixtures_screen.dart';
 import 'check_in_screen.dart';
+import 'booking_qr_screen.dart';
 import 'settings_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -232,6 +233,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   ]));
       if (confirmed != true || !mounted) return;
       final qr = await ApiService().dio.get('/bookings/$id/qr');
+      if (qr.data['data']['qrToken'] == null) {
+        if (mounted) _message(qr.data['data']['entryPass']['message']);
+        return;
+      }
       await ApiService().dio.post('/bookings/scan',
           data: {'qrToken': qr.data['data']['qrToken']});
       if (mounted) {
@@ -614,6 +619,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         status = booking['status'];
     final canCheckIn = status == 'CONFIRMED' &&
         DateUtils.isSameDay(_date, arenaToday(_now)) &&
+        !arenaInstant(arenaDate(_date), slot['startTime']).isAfter(_now) &&
         arenaInstant(arenaDate(_date), slot['endTime']).isAfter(_now);
     return Card(
         margin: const EdgeInsets.only(bottom: 12),
@@ -681,9 +687,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         : booking['notes'],
                     style: TextStyle(color: colors.onSurfaceVariant))
               ],
-              if (status == 'PENDING_PAYMENT' || canCheckIn) ...[
+              if (status == 'PENDING_PAYMENT' || status == 'CONFIRMED') ...[
                 const SizedBox(height: 12),
                 Wrap(spacing: 8, runSpacing: 8, children: [
+                  if (status == 'CONFIRMED')
+                    OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    BookingQrScreen(bookingId: id))),
+                        icon: const Icon(Icons.qr_code_2),
+                        label: const Text('View entry pass')),
                   if (status == 'PENDING_PAYMENT')
                     OutlinedButton(
                         onPressed:
@@ -857,7 +872,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ArenaSymbol.money, const PaymentsScreen(admin: true)),
         _module('Reports', 'Revenue and performance', ArenaSymbol.report,
             const AdminReportsScreen()),
-        _module('Verify an entry pass', 'Enter or paste a booking QR token',
+        _module('Verify an entry pass', 'Scan or enter a booking pass',
             ArenaSymbol.scan, const CheckInScreen()),
         _module('Profile & appearance', 'Your account and theme',
             ArenaSymbol.settings, const SettingsScreen()),

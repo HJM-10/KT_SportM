@@ -48,3 +48,13 @@ The final persisted state was independently checked and saved in `qa/evidence/ch
 ## Entry-pass design follow-up
 
 The entry verification page now uses a compact branded pass card, a separate code form with an explicit Paste action, readable errors, and a player/session receipt after successful check-in. Arena Desk icons retain their square proportions even in full-width lists. Tests cover narrow layouts in both themes with enlarged text, explicit verification before check-in, QR-token parsing, rejected passes, and paste without accidental check-in. Android revision: **1.0.2 (build 3)**.
+
+## Session entry QR follow-up — 25 October 2026
+
+Android revision: **1.0.3 (build 4)**. The user's final rule supersedes the proposed 15-minute cutoff and late fee: entry is allowed from the booked start (inclusive) until the booked end (exclusive). An 20:00–21:00 booking admits a player at 20:59:59.999 and rejects a scan at 21:00. No late fee was added.
+
+Confirmed customers and staff can display an opaque, single-use QR pass. The pass page shows the venue, customer, session and PKT deadline, hides expired/unpaid/cancelled/used passes, refreshes on booking changes and app resume, and advances its display against server time. Booking and walk-in forms explain session-end expiry. Rescheduling rotates the token, invalidating old screenshots. General booking responses omit QR tokens and cached QR images.
+
+The staff verification screen has camera scanning plus manual/paste fallback. Scanning fills the entry code; staff explicitly select **Verify & check in**. Camera denial has retry and manual-entry options. Android bundles the barcode decoder; no first-scan model download is needed. Internet access to the API is required for validation.
+
+Verification: 65 backend tests and 39 Flutter tests passed; Flutter analyzer reported no issues; Android APK built successfully. `node qa/qr-entry-demo.cjs` verified real demo-database concurrent scans (exactly one admission), invalid pass rejection, and reschedule token/deadline replacement, cleaning up its own fixtures. The updated app was installed on Galaxy A72 R58R83NX3FE, and the user confirmed the physical camera captured the displayed QR and returned its code to the confirmation screen. A fresh free walkthrough booking is retained by `backend/scripts/prepare-qr-demo.js` (run from backend, isolated demo DB only). Browser evidence: `qa/evidence/session-entry-pass.png`.

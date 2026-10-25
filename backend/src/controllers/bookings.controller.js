@@ -4,6 +4,7 @@ const transaction = require('../lib/transaction');
 const QRCode = require('qrcode');
 const { randomUUID: uuidv4 } = require('node:crypto');
 const socket = require('../lib/socket');
+const { entryPass, bookingForClient } = require('../lib/entry-pass');
 const { startsAt, endsAt, deadline, assertVenueAvailable, fail, hasNotice } = require('../lib/arena-time');
 const { expireReservations, cancelPayment } = require('../lib/reservation-lifecycle');
 
@@ -70,7 +71,7 @@ const getMyBookings = async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json({ success: true, data: bookings });
+    res.json({ success: true, data: bookings.map(b => bookingForClient(b)) });
   } catch (err) {
     console.error(err);
     handleError(err, req, res);
@@ -94,7 +95,7 @@ const getAllBookings = async (req, res) => {
       skip,
       take: limit
     });
-    res.json({ success: true, data: bookings });
+    res.json({ success: true, data: bookings.map(b => bookingForClient(b)) });
   } catch (err) {
     console.error(err);
     handleError(err, req, res);
@@ -208,12 +209,6 @@ const createBooking = async (req, res) => {
       });
       await tx.bookingSlot.update({ where: { id: parseInt(slotId) }, data: { isBooked: true } });
       
-      const qrPayload = JSON.stringify({ bookingId: b.id, token: qrToken, userId: targetUserId });
-      const qrCode = await QRCode.toDataURL(qrPayload);
-      
-      await tx.booking.update({ where: { id: b.id }, data: { qrCode } });
-      b.qrCode = qrCode;
-      
       if (promoCodeId) {
          await tx.promoCode.update({ where: { id: promoCodeId }, data: { updatedAt: new Date() } });
          const currentPromo = await tx.promoCode.findUnique({ where: { id: promoCodeId } });
@@ -238,7 +233,7 @@ const createBooking = async (req, res) => {
       return b;
     });
 
-    res.status(201).json({ success: true, data: booking });
+    res.status(201).json({ success: true, data: bookingForClient(booking) });
     try { socket.getIO().emit('booking_updated', { slotId: booking.slotId }); } catch (e) {}
   } catch (err) {
     console.error(err);
@@ -286,56 +281,48 @@ const cancelBooking = async (req, res) => {
 
 const getBookingQR = async (req, res) => {
   try {
-    const booking = await prisma.booking.findUnique({
-      where: { id: parseInt(req.params.id) },
-      include: { slot: { include: { venue: { include: { sport: true } } } } }
-    });
-    if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
-    if (booking.userId !== req.user.id && req.user.role !== 'ADMIN') {
-      return res.status(403).json({ success: false, message: 'Not authorized' });
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) throw fail('A valid booking ID is required', 400);
+    const include = { user: { select: { name: true } }, slot: { include: { venue: { include: { sport: true } } } } };
+    let booking = await prisma.booking.findUnique({ where: { id }, include });
+    if (!booking) throw fail('Booking not found', 404);
+    if (booking.userId !== req.user.id && req.user.role !== 'ADMIN') throw fail('Not authorized', 403);
+    let pass = entryPass(booking);
+    if (['VALID', 'UPCOMING'].includes(pass.status) && !booking.qrToken) {
+      await prisma.booking.updateMany({ where: { id, status: 'CONFIRMED', qrToken: null }, data: { qrToken: uuidv4(), qrCode: null } });
+      booking = await prisma.booking.findUnique({ where: { id }, include });
+      pass = entryPass(booking);
     }
-    res.json({ success: true, data: { qrCode: booking.qrCode, qrToken: booking.qrToken, booking } });
-  } catch (err) {
-    console.error(err);
-    handleError(err, req, res);
-  }
+    const available = ['VALID', 'UPCOMING'].includes(pass.status);
+    const token = available ? booking.qrToken : null;
+    // Only the opaque token is encoded: no customer or payment details.
+    const qrCode = token ? await QRCode.toDataURL(token, { errorCorrectionLevel: 'M', margin: 4 }) : null;
+    res.json({ success: true, data: { qrCode, qrToken: token, entryPass: pass, booking: bookingForClient(booking) } });
+  } catch (err) { handleError(err, req, res); }
 };
 
 const scanBooking = async (req, res) => {
   try {
-    const { qrToken } = req.body;
-    if (!qrToken) return res.status(400).json({ success: false, message: 'qrToken is required' });
-
-    const booking = await prisma.booking.findUnique({
-      where: { qrToken },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        slot: { include: { venue: { include: { sport: { select: { name: true } } } } } }
-      }
+    let value = req.body.qrToken;
+    if (typeof value !== 'string' || !value.trim() || value.length > 2000) throw fail('A valid entry pass code is required', 400);
+    try { const decoded = JSON.parse(value); if (typeof decoded?.token === 'string') value = decoded.token; } catch {}
+    const qrToken = value.trim();
+    const include = { user: { select: { id: true, name: true } }, slot: { include: { venue: { include: { sport: { select: { name: true } } } } } } };
+    const updated = await transaction(async tx => {
+      // Lock first, then check the clock and current booking. No stale token can
+      // race a reschedule or remain valid after the end of the booked session.
+      const locked = await tx.booking.updateMany({ where: { qrToken }, data: { updatedAt: new Date() } });
+      if (!locked.count) throw fail('Invalid entry pass', 404);
+      const booking = await tx.booking.findUnique({ where: { qrToken }, include });
+      const pass = entryPass(booking);
+      if (pass.status !== 'VALID') throw fail(pass.message, 400);
+      const changed = await tx.booking.updateMany({ where: { id: booking.id, qrToken, slotId: booking.slotId, status: 'CONFIRMED' }, data: { status: 'SCANNED' } });
+      if (!changed.count) throw fail('Booking already checked in or changed');
+      return tx.booking.findUnique({ where: { id: booking.id }, include });
     });
-
-    if (!booking) return res.status(404).json({ success: false, message: 'Invalid QR code' });
-    if (booking.status === 'CANCELLED') return res.status(400).json({ success: false, message: 'Booking is cancelled' });
-    if (booking.status === 'SCANNED') return res.status(400).json({ success: false, message: 'Booking already used' });
-    if (booking.status !== 'CONFIRMED') return res.status(400).json({ success: false, message: 'Payment must be confirmed before check-in' });
-    if (Date.now() < startsAt(booking.slot).getTime() - 30 * 60000 || Date.now() >= endsAt(booking.slot).getTime()) throw fail('Check-in opens 30 minutes before the session and closes at its end', 400);
-
-    const changed = await prisma.booking.updateMany({ where: { id: booking.id, slotId: booking.slotId, status: 'CONFIRMED' }, data: { status: 'SCANNED' } });
-    if (!changed.count) return res.status(409).json({ success: false, message: 'Booking already checked in or changed' });
-    const updated = await prisma.booking.findUnique({
-      where: { id: booking.id },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        slot: { include: { venue: { include: { sport: { select: { name: true } } } } } }
-      }
-    });
-
-    res.json({ success: true, message: 'Booking verified!', data: updated });
-    try { socket.getIO().emit('booking_updated', { slotId: updated.slotId }); } catch (e) {}
-  } catch (err) {
-    console.error(err);
-    handleError(err, req, res);
-  }
+    res.json({ success: true, message: 'Player checked in', data: bookingForClient(updated) });
+    try { socket.getIO().emit('booking_updated', { slotId: updated.slotId }); } catch {}
+  } catch (err) { handleError(err, req, res); }
 };
 
 const confirmBooking = async (req, res) => {

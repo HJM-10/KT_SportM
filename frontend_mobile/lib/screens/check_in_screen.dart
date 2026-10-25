@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/api_errors.dart';
 import '../utils/arena_desk.dart';
 import '../widgets/clubhouse.dart';
+import 'entry_qr_scanner_screen.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -41,6 +42,17 @@ class _CheckInScreenState extends State<CheckInScreen> {
             _error = 'Press and hold the field to paste your entry code.');
       }
     }
+  }
+
+  Future<void> _scan() async {
+    final value = await Navigator.of(context).push<String>(
+        MaterialPageRoute(builder: (_) => const EntryQrScannerScreen()));
+    if (!mounted || value == null) return;
+    _token.text = value;
+    setState(() => _error = null);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content:
+            Text('QR captured. Tap Verify & check in to confirm arrival.')));
   }
 
   Future<void> _checkIn() async {
@@ -133,6 +145,15 @@ class _CheckInScreenState extends State<CheckInScreen> {
         const ClubhouseHeading('Welcome them in.',
             subtitle: 'Use their booking pass to confirm arrival.'),
         const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _busy ? null : _scan,
+            icon: const Icon(Icons.qr_code_scanner_rounded),
+            label: const Text('Scan QR code'),
+          ),
+        ),
+        const SizedBox(height: 16),
         Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -240,7 +261,7 @@ class _CheckInScreenState extends State<CheckInScreen> {
           const SizedBox(width: 10),
           Expanded(
               child: Text(
-                  'Check-in opens 30 minutes before the session. Each pass can be used once.',
+                  'Check in any time during the booked session, before it ends. Each pass can be used once.',
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall

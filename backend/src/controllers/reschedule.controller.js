@@ -1,4 +1,6 @@
 const prisma = require('../lib/prisma');
+const { randomUUID } = require('node:crypto');
+const { bookingForClient } = require('../lib/entry-pass');
 const transaction = require('../lib/transaction');
 const socket = require('../lib/socket');
 const { createNotification } = require('../lib/notifications');
@@ -26,13 +28,13 @@ exports.reschedule = async (req, res, next) => {
       if (slot.venueId !== booking.slot.venueId || slot.endTime.split(':').map(Number).reduce((h, m) => h * 60 + m) - slot.startTime.split(':').map(Number).reduce((h, m) => h * 60 + m) !== booking.slot.endTime.split(':').map(Number).reduce((h, m) => h * 60 + m) - booking.slot.startTime.split(':').map(Number).reduce((h, m) => h * 60 + m)) throw Object.assign(new Error('Choose the same venue and slot duration; the original price is retained'), { status: 400 });
       const claim = await tx.bookingSlot.updateMany({ where: { id: slotId, isBooked: false }, data: { isBooked: true } });
       if (!claim.count) throw Object.assign(new Error('Target slot was just reserved'), { status: 409 });
-      const changed = await tx.booking.updateMany({ where: { id, slotId: booking.slotId, status: booking.status }, data: { slotId } });
+      const changed = await tx.booking.updateMany({ where: { id, slotId: booking.slotId, status: booking.status }, data: { slotId, qrToken: randomUUID(), qrCode: null } });
       if (!changed.count) throw Object.assign(new Error('Booking changed; refresh and retry'), { status: 409 });
       await tx.bookingSlot.update({ where: { id: booking.slotId }, data: { isBooked: false } });
       return tx.booking.findUnique({ where: { id }, include: { slot: true } });
     });
     try { socket.getIO().emit('booking_updated', { slotId }); } catch {}
     await createNotification(updated.userId, 'Booking rescheduled', `Booking #${id} has moved to ${updated.slot.date.toISOString().slice(0, 10)} at ${updated.slot.startTime}.`, 'BOOKING');
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: bookingForClient(updated) });
   } catch (e) { next(e); }
 };

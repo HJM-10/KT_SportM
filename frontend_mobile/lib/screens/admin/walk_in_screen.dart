@@ -225,6 +225,14 @@ class _AdminWalkInScreenState extends State<AdminWalkInScreen> {
                                   : (_) => setState(() => _slotId = s['id'])))
                           .toList()),
                 const SizedBox(height: 24),
+                if (_slotId != null && _slots.any((s) => s['id'] == _slotId))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text('Entry is available during the booked session. '
+                        'The QR pass expires at '
+                        '${arenaTime(_slots.firstWhere((s) => s['id'] == _slotId)['endTime'])} PKT. '
+                        'Customers may arrive any time before then.'),
+                  ),
                 TextFormField(
                     controller: _name,
                     enabled: !_saving,
