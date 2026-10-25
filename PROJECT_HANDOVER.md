@@ -1,5 +1,7 @@
 # Smart Sports Hub — project handover
 
+**Checklist update, 25 October 2026:** The six requested areas (facilities, bookings, cancellations/rescheduling, tournaments, fixtures/results, and events) have been updated and tested with demo data. See [CHECKLIST_COMPLETION.md](CHECKLIST_COMPLETION.md) for current behavior, verification, and the remaining live-payment configuration limit. The corresponding gap descriptions below are the earlier audit, not the current checklist status.
+
 **Later demo setup, 16 October 2026:** The user requested dummy logins. A separate local MariaDB demo database is now running, Prisma generation and all four migrations succeeded, and both clients were signed in with real backend authentication. See DEMO_ACCESS.md for credentials, sample data and restart commands. The missing-database statements below describe the initial audit environment, before this demo setup; the friend's original database/configuration is still unavailable. Feature limitations remain applicable.
 
 Reviewed on 16 October 2026. This describes the current checkout, the checks performed in this session, and the work needed to continue it. The older PROJECT_AUDIT.md describes another environment and earlier verification; its results are not assumed to apply to this machine.

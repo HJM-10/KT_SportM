@@ -133,9 +133,11 @@ class _EquipmentScreenState extends State<EquipmentScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Center(
+                          Center(
                               child: Icon(Icons.sports_soccer,
-                                  size: 48, color: Colors.blue)),
+                                  size: 48,
+                                  color:
+                                      Theme.of(context).colorScheme.primary)),
                           const Spacer(),
                           Text(eq['name'],
                               maxLines: 2,

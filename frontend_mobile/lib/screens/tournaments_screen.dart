@@ -1,3 +1,4 @@
+import 'tournament_details_screen.dart';
 import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -108,8 +109,15 @@ class _TournamentsScreenState extends State<TournamentsScreen>
           .post('/tournaments/$tournamentId/register', data: {
         'teamName': '${user['name']}\'s Team',
       });
+      var feedback = 'Registration saved.';
       if (response.data['data']['paymentId'] != null) {
-        await PaymentService.checkout(response.data['data']['paymentId']);
+        feedback = 'Registration saved. Payment is pending until verified.';
+        try {
+          await PaymentService.checkout(response.data['data']['paymentId']);
+        } catch (_) {
+          feedback =
+              'Registration saved. Online checkout is unavailable; contact staff to pay before the hold expires.';
+        }
       }
       if (!mounted) return;
       setState(() {
@@ -117,7 +125,7 @@ class _TournamentsScreenState extends State<TournamentsScreen>
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration processed successfully!')),
+          SnackBar(content: Text(feedback)),
         );
       }
       _fetchTournaments();
@@ -171,7 +179,9 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1)
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .primary
                                     .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
@@ -179,12 +189,17 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(IconHelper.getIcon(t['sport']?['icon']),
-                                      size: 14, color: const Color(0xFF818CF8)),
+                                      size: 14,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary),
                                   const SizedBox(width: 4),
                                   Text(
                                     t['sport']?['name'] ?? '',
-                                    style: const TextStyle(
-                                        color: Color(0xFF818CF8),
+                                    style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold),
                                   ),
@@ -227,12 +242,20 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: t['status'] == 'UPCOMING'
-                                        ? const Color(0xFF6366F1)
+                                        ? Theme.of(context).colorScheme.primary
                                         : (t['status'] == 'ONGOING'
                                             ? Colors.orange
                                             : Colors.green),
                                   ),
                                 ),
+                                TextButton(
+                                    onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                TournamentDetailsScreen(
+                                                    id: t['id']))),
+                                    child: const Text('Results')),
                                 if (t['status'] == 'UPCOMING')
                                   ElevatedButton(
                                     onPressed: registered || !open
@@ -242,7 +265,7 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: registered
                                           ? Colors.green
-                                          : const Color(0xFF6366F1),
+                                          : const Color(0xFF174C36),
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(8)),

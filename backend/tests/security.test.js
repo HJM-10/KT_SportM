@@ -2,11 +2,13 @@ const request = require('supertest');
 const jwt = require('jsonwebtoken');
 jest.mock('../src/lib/prisma', () => ({
   user: { findUnique: jest.fn(), create: jest.fn() },
-  booking: { findUnique: jest.fn(), update: jest.fn() },
+  booking: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
   payment: { findUnique: jest.fn(), update: jest.fn() },
+  $transaction: jest.fn(),
 }));
 const app = require('../src/app');
 const prisma = require('../src/lib/prisma');
+beforeEach(() => prisma.$transaction.mockImplementation(fn => fn(prisma)));
 const token = (role = 'CUSTOMER') => {
   prisma.user.findUnique.mockResolvedValue({ id: 1, role, isActive: true });
   return `Bearer ${jwt.sign({ id: 1, role }, process.env.JWT_SECRET)}`;
@@ -41,7 +43,7 @@ test('unconfigured Stripe does not pretend to collect money', async () => {
   if (key) process.env.STRIPE_SECRET_KEY = key;
 });
 test('unpaid QR code cannot check in', async () => {
-  prisma.booking.findUnique.mockResolvedValue({ id: 5, status: 'PENDING_PAYMENT' });
+  prisma.booking.findUnique.mockResolvedValue({ id: 5, status: 'PENDING_PAYMENT', slot: { date: new Date('2026-10-25'), startTime: '20:00', endTime: '21:00' } });
   expect((await request(app).post('/api/bookings/scan').set('Authorization', token('ADMIN')).send({ qrToken: 'test-token' })).status).toBe(400);
   expect(prisma.booking.update).not.toHaveBeenCalled();
 });

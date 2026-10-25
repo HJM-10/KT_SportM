@@ -92,7 +92,7 @@ const EventsPage = () => {
   const handleCreateEvent = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/events', formData);
+      await axios.post('/events', { ...formData, startDate: new Date(`${formData.startDate}:00+05:00`).toISOString(), endDate: formData.endDate ? new Date(`${formData.endDate}:00+05:00`).toISOString() : null });
       toast.success('Event created successfully');
       setShowCreateModal(false);
       fetchEvents();
@@ -101,6 +101,9 @@ const EventsPage = () => {
     }
   };
 
+  const cancelRegistration = async (eventId, regId) => { try { const r = await axios.post(`/events/${eventId}/registrations/${regId}/cancel`); toast.success(r.data.message); fetchEvents(); if (showAdminModal) handleViewAttendees(eventId); } catch (e) { toast.error(e.response?.data?.message || 'Could not cancel registration'); } };
+  const attend = async regId => { try { await axios.post(`/events/${adminEvent.id}/registrations/${regId}/attend`); toast.success('Attendance recorded'); handleViewAttendees(adminEvent.id); } catch (e) { toast.error(e.response?.data?.message || 'Could not record attendance'); } };
+  const cancelEvent = async () => { try { await axios.put(`/events/${adminEvent.id}`, { status: 'CANCELLED' }); toast.success('Event cancelled; refunds queued'); setShowAdminModal(false); fetchEvents(); } catch (e) { toast.error(e.response?.data?.message || 'Could not cancel event'); } };
   if (loading) return <div className="p-6 text-white text-center">Loading events...</div>;
 
   return (
@@ -154,7 +157,8 @@ const EventsPage = () => {
             </div>
 
             <div className="mt-auto pt-4">
-              {!isAdmin && (
+              {!isAdmin && !!event.registrations?.length && <div><p>Registered · {event.registrations[0].payment?.status || 'FREE'}</p><button className="btn btn-secondary" onClick={() => cancelRegistration(event.id, event.registrations[0].id)}>Cancel registration</button><p>Cancel at least 2 hours before start for a full refund.</p></div>}
+              {!isAdmin && !event.registrations?.length && (
                 <button 
                   onClick={() => handleRegister(event.id, event.fee)}
                   className="btn btn-primary btn-full"
@@ -200,19 +204,20 @@ const EventsPage = () => {
               <button onClick={() => setShowAdminModal(false)} className="text-gray-400 hover:text-white">&times;</button>
             </div>
             
+            {adminEvent.status !== 'CANCELLED' && <button className="btn btn-danger" onClick={() => { if (window.confirm('Cancel this event and queue full refunds for all paid attendees?')) cancelEvent(); }}>Cancel event and refund entries</button>}
             <div className="overflow-auto max-h-96">
               <table className="w-full text-left text-sm text-gray-300">
                 <thead className="text-xs uppercase bg-white/5 text-gray-400 border-b border-white/10">
                   <tr>
                     <th className="px-4 py-3">User</th>
                     <th className="px-4 py-3">Registration Date</th>
-                    <th className="px-4 py-3">Payment</th>
+                    <th className="px-4 py-3">Payment</th><th>Attendance / actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {adminEvent.registrations.map(r => (
                     <tr key={r.id}>
-                      <td className="px-4 py-3 font-medium text-white">{r.user?.name}</td>
+                      <td className="px-4 py-3 font-medium text-white">{r.user?.name}<p>{r.status}</p></td>
                       <td className="px-4 py-3">{new Date(r.createdAt).toLocaleDateString()}</td>
                       <td className="px-4 py-3">
                         {r.payment ? (
@@ -223,6 +228,7 @@ const EventsPage = () => {
                           <span className="px-2 py-1 rounded text-xs font-bold bg-gray-500/20 text-gray-400">FREE</span>
                         )}
                       </td>
+                      <td>{r.attendedAt ? `Attended ${new Date(r.attendedAt).toLocaleString()}` : r.status === 'ACTIVE' && <div><button className="btn btn-secondary btn-sm" onClick={() => attend(r.id)}>Check in</button><button className="btn btn-secondary btn-sm" onClick={() => cancelRegistration(adminEvent.id, r.id)}>Cancel entry</button></div>}</td>
                     </tr>
                   ))}
                   {adminEvent.registrations.length === 0 && (
@@ -269,16 +275,16 @@ const EventsPage = () => {
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Start Date</label>
-                  <input type="date" required className="form-input w-full" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+                  <input type="datetime-local" required className="form-input w-full" value={formData.startDate} onChange={e => setFormData({...formData, startDate: e.target.value})} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">End Date</label>
-                  <input type="date" className="form-input w-full" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                  <input type="datetime-local" className="form-input w-full" value={formData.endDate} onChange={e => setFormData({...formData, endDate: e.target.value})} />
                 </div>
               </div>
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Registration Fee ($)</label>
+                  <label className="form-label">Registration Fee (Rs.)</label>
                   <input type="number" required min="0" step="0.01" className="form-input w-full" value={formData.fee} onChange={e => setFormData({...formData, fee: e.target.value})} />
                 </div>
                 <div className="form-group">

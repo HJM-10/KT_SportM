@@ -8,9 +8,11 @@ const server = require('node:http').createServer(app);
 const socket = require('../src/lib/socket');
 const prisma = require('../src/lib/prisma');
 socket.init(server);
+const stopLifecycle = require('../src/lib/reservation-lifecycle').startLifecycleWorker();
 server.listen(5000, '127.0.0.1', () => console.log('Demo API ready at http://127.0.0.1:5000/api'));
 server.on('error', error => { console.error(error.message); process.exitCode = 1; });
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => {
+  stopLifecycle();
   socket.getIO().close();
   server.close(async () => { await prisma.$disconnect(); });
 });

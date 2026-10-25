@@ -45,7 +45,8 @@ class SmartSportsHubApp extends StatelessWidget {
       builder: (context, themeProvider, _) {
         return MaterialApp(
           navigatorKey: _navigatorKey,
-          title: 'Smart Sports Hub',
+          title: 'KT Smart Sport Hub',
+          debugShowCheckedModeBanner: false,
           themeMode: themeProvider.themeMode,
           theme: ThemeProvider.lightTheme,
           darkTheme: ThemeProvider.darkTheme,
@@ -60,6 +61,9 @@ class SmartSportsHubApp extends StatelessWidget {
             '/notifications': (context) => const NotificationsScreen(),
             '/payments': (context) => const PaymentsScreen(),
             '/settings': (context) => const SettingsScreen(),
+            '/sports': (context) => const SportsScreen(),
+            '/tournaments': (context) => const TournamentsScreen(),
+            '/matches': (context) => const MatchesScreen(),
           },
         );
       },
@@ -79,32 +83,28 @@ class _MainLayoutState extends State<MainLayout> {
 
   final List<Widget> _screens = [
     const DashboardScreen(),
-    const SportsScreen(),
-    const TournamentsScreen(),
-    const MatchesScreen(),
     const MyBookingsScreen(),
+    const SettingsScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        selectedItemColor: Theme.of(context).primaryColor,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.sports_soccer), label: 'Sports'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.emoji_events), label: 'Tournaments'),
-          BottomNavigationBarItem(icon: Icon(Icons.sports), label: 'Matches'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.book_online), label: 'Bookings'),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        destinations: const [
+          NavigationDestination(
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: 'Discover'),
+          NavigationDestination(
+              icon: Icon(Icons.calendar_month_outlined), label: 'Bookings'),
+          NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person),
+              label: 'Profile'),
         ],
       ),
     );

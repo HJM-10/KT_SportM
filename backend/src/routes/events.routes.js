@@ -9,8 +9,10 @@ router.get('/:id', getEventById);
 router.use(authenticate);
 
 router.post('/:id/register', registerForEvent);
+router.post('/:id/registrations/:registrationId/cancel', require('../controllers/events.controller').cancelRegistration);
 
 router.use(requireAdmin);
+router.post('/:id/registrations/:registrationId/attend', require('../controllers/events.controller').attend);
 
 router.post('/', createEvent);
 router.put('/:id', updateEvent);

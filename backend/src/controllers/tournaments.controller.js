@@ -1,5 +1,8 @@
 const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
+const transaction = require('../lib/transaction');
+const { deadline, fail } = require('../lib/arena-time');
+const { expireReservations } = require('../lib/reservation-lifecycle');
 
 const getTournaments = async (req, res) => {
   try {
@@ -16,8 +19,8 @@ const getTournaments = async (req, res) => {
       where,
       include: {
         sport: { select: { id: true, name: true, icon: true } },
-        registrations: { where: { userId: req.user.id }, select: { id: true, payment: { select: { status: true } } } },
-        _count: { select: { registrations: true, matches: true } }
+        registrations: { where: { userId: req.user.id, status: 'ACTIVE' }, select: { id: true, payment: { select: { status: true } } } },
+        _count: { select: { registrations: { where: { status: 'ACTIVE' } }, matches: true } }
       },
       orderBy: { startDate: 'desc' },
       skip,
@@ -41,6 +44,7 @@ const getTournamentById = async (req, res) => {
       }
     });
     if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });
+    tournament.standings = require('../lib/tournament-competition').standings(tournament);
     res.json({ success: true, data: tournament });
   } catch (err) {
     console.error(err);
@@ -77,7 +81,14 @@ const createTournament = async (req, res) => {
 const updateTournament = async (req, res) => {
   try {
     const { name, description, status, startDate, endDate, maxTeams, entryFee, imageUrl } = req.body;
-    const tournament = await prisma.tournament.update({
+    const tournament = await transaction(async tx => {
+      const current = await tx.tournament.update({ where: { id: Number(req.params.id) }, data: { updatedAt: new Date() } });
+      const count = await tx.teamRegistration.count({ where: { tournamentId: current.id, status: 'ACTIVE' } });
+      if (maxTeams && Number(maxTeams) < count) throw fail('Capacity cannot be below the active team count');
+      if (status === 'COMPLETED' && current.status !== 'COMPLETED') throw fail('Record all results to finalize the champion');
+      if (current.status === 'COMPLETED' || (status === 'UPCOMING' && current.status !== 'UPCOMING')) throw fail('Started or completed tournaments cannot be reopened');
+      if (new Date(endDate || current.endDate || '9999-01-01') < new Date(startDate || current.startDate)) throw fail('End date must follow start date', 400);
+      return tx.tournament.update({
       where: { id: parseInt(req.params.id) },
       data: {
         name, description, status,
@@ -88,7 +99,7 @@ const updateTournament = async (req, res) => {
         imageUrl
       },
       include: { sport: { select: { id: true, name: true } } }
-    });
+    }); });
     res.json({ success: true, data: tournament });
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Tournament not found' });
@@ -103,7 +114,9 @@ const deleteTournament = async (req, res) => {
     const registrationCount = await prisma.teamRegistration.count({ where: { tournamentId } });
     if (registrationCount > 0) return res.status(409).json({ success: false, message: 'Tournament has registrations. Retain it to preserve payment and match history.' });
     
-    await prisma.$transaction(async (tx) => {
+    await transaction(async (tx) => {
+      await tx.tournament.update({ where: { id: tournamentId }, data: { updatedAt: new Date() } });
+      if (await tx.teamRegistration.count({ where: { tournamentId } })) throw fail('Tournament has registration history and cannot be deleted');
       // Find registrations for this tournament
       const regs = await tx.teamRegistration.findMany({
         where: { tournamentId },
@@ -143,117 +156,46 @@ const deleteTournament = async (req, res) => {
 };
 
 
-const registerForTournament = async (req, res) => {
+async function register(req, res, manual) {
   try {
-    const { teamName } = req.body;
-    const tournamentId = parseInt(req.params.id);
-
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-      include: {
-        _count: {
-          select: { registrations: true }
-        }
-      }
+    await expireReservations();
+    const tournamentId = Number(req.params.id);
+    const userId = manual && req.body.userId ? Number(req.body.userId) : req.user.id;
+    if (!Number.isSafeInteger(userId) || userId < 1) throw fail('Valid captain required', 400);
+    const teamName = (req.body.teamName || `Team ${userId}`).trim();
+    if (!teamName || teamName.length > 100 || ['bye', 'team1', 'team2', 'draw'].includes(teamName.toLowerCase())) throw fail('Choose a valid team name (BYE, team1, team2 and draw are reserved)', 400);
+    const paymentStatus = manual ? (req.body.paymentStatus || 'PENDING') : 'PENDING';
+    if (!['PENDING', 'PAID', 'FREE'].includes(paymentStatus)) throw fail('Invalid payment status', 400);
+    if (paymentStatus === 'PAID' && req.body.receivedInPerson !== true) throw fail('Explicit confirmation of money received in person is required', 400);
+    if (paymentStatus === 'FREE' && !req.body.waiverReason?.trim()) throw fail('A reason is required to waive an entry fee', 400);
+    const result = await transaction(async tx => {
+      const t = await tx.tournament.update({ where: { id: tournamentId }, data: { updatedAt: new Date() } });
+      if (t.status !== 'UPCOMING' || t.startDate <= new Date()) throw fail('Tournament registration is closed');
+      const count = await tx.teamRegistration.count({ where: { tournamentId, status: 'ACTIVE' } });
+      if (count >= t.maxTeams) throw fail('Tournament has reached maximum capacity');
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      if (!user?.isActive) throw fail('Captain account is unavailable', 400);
+      const registrations = await tx.teamRegistration.findMany({ where: { tournamentId, status: 'ACTIVE' } });
+      if (registrations.some(r => r.teamName.trim().toLowerCase() === teamName.toLowerCase())) throw fail('Team name is already registered');
+      const old = await tx.teamRegistration.findUnique({ where: { tournamentId_userId: { tournamentId, userId } }, include: { payment: true } });
+      if (old?.status === 'ACTIVE') throw fail('Already registered for this tournament');
+      if (old?.payment && old.payment.status !== 'FAILED') throw fail('Previous registration requires refund reconciliation');
+      if (old?.payment) await tx.payment.update({ where: { id: old.payment.id }, data: { tournamentRegId: null } });
+      const reg = old ? await tx.teamRegistration.update({ where: { id: old.id }, data: { status: 'ACTIVE', teamName } }) : await tx.teamRegistration.create({ data: { tournamentId, userId, teamName } });
+      // A waived entry has an auditable zero-value paid record and remains eligible for fixtures.
+      const amount = paymentStatus === 'FREE' ? 0 : t.entryFee;
+      const paid = amount === 0 || paymentStatus === 'PAID';
+      const payment = await tx.payment.create({ data: { userId, amount, purpose: 'TOURNAMENT_REGISTRATION', tournamentRegId: reg.id, status: paid ? 'PAID' : 'PENDING', expiresAt: paid ? null : deadline() } });
+      if (paymentStatus === 'FREE') await tx.notification.create({ data: { userId, title: 'Tournament fee waived', body: `Entry for ${teamName}: ${req.body.waiverReason.trim()}`, type: 'TOURNAMENT' } });
+      return { ...reg, paymentId: paid ? null : payment.id };
     });
-    if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });
-    if (tournament.status !== 'UPCOMING') {
-      return res.status(400).json({ success: false, message: 'Registration is closed' });
-    }
-    if (tournament._count.registrations >= tournament.maxTeams) {
-      return res.status(400).json({ success: false, message: 'Tournament has reached maximum team capacity' });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      await tx.tournament.update({ where: { id: tournamentId }, data: { updatedAt: new Date() } });
-      const current = await tx.tournament.findUnique({ where: { id: tournamentId } });
-      const count = await tx.teamRegistration.count({ where: { tournamentId } });
-      if (current.status !== 'UPCOMING' || count >= current.maxTeams) throw Object.assign(new Error('Tournament registration is closed or full'), { status: 409 });
-      const reg = await tx.teamRegistration.create({
-        data: { 
-          tournamentId, 
-          userId: req.user.id, 
-          teamName: teamName || `Team ${req.user.id}`
-        },
-        include: { tournament: { select: { id: true, name: true, entryFee: true } } }
-      });
-
-      if (tournament.entryFee > 0) {
-
-        const payment = await tx.payment.create({
-          data: {
-            userId: req.user.id,
-            amount: tournament.entryFee,
-            purpose: 'TOURNAMENT_REGISTRATION',
-            tournamentRegId: reg.id,
-            status: 'PENDING'
-          }
-        });
-        reg.paymentId = payment.id;
-      }
-
-      return reg;
-    });
-
     res.status(201).json({ success: true, data: result });
-  } catch (err) {
-    if (err.code === 'P2002') {
-      return res.status(409).json({ success: false, message: 'Already registered for this tournament' });
-    }
-    console.error(err);
-    handleError(err, req, res);
+  } catch (e) {
+    if (e.code === 'P2002') e = fail('User or team is already registered');
+    if (e.code === 'P2025') e = fail('Tournament not found', 404);
+    handleError(e, req, res);
   }
-};
-
-const manualRegister = async (req, res) => {
-  try {
-    const { teamName, userId, paymentStatus } = req.body;
-    const tournamentId = parseInt(req.params.id);
-
-    const tournament = await prisma.tournament.findUnique({
-      where: { id: tournamentId },
-      include: { _count: { select: { registrations: true } } }
-    });
-    
-    if (!tournament) return res.status(404).json({ success: false, message: 'Tournament not found' });
-    if (tournament._count.registrations >= tournament.maxTeams) {
-      return res.status(400).json({ success: false, message: 'Tournament has reached maximum capacity' });
-    }
-
-    const regUserId = userId ? parseInt(userId) : req.user.id;
-
-    const result = await prisma.$transaction(async (tx) => {
-      const reg = await tx.teamRegistration.create({
-        data: { 
-          tournamentId, 
-          userId: regUserId, 
-          teamName: teamName || `Team ${regUserId}`
-        }
-      });
-
-      if (tournament.entryFee > 0 && paymentStatus !== 'FREE') {
-        const payment = await tx.payment.create({
-          data: {
-            userId: regUserId,
-            amount: tournament.entryFee,
-            purpose: 'TOURNAMENT_REGISTRATION',
-            tournamentRegId: reg.id,
-            status: paymentStatus || 'PAID'
-          }
-        });
-        reg.paymentId = payment.id;
-      }
-      return reg;
-    });
-
-    res.status(201).json({ success: true, data: result });
-  } catch (err) {
-    if (err.code === 'P2002') return res.status(409).json({ success: false, message: 'User is already registered for this tournament' });
-    console.error(err);
-    handleError(err, req, res);
-  }
-};
-
+}
+const registerForTournament = (req, res) => register(req, res, false);
+const manualRegister = (req, res) => register(req, res, true);
 module.exports = { getTournaments, getTournamentById, createTournament, updateTournament, deleteTournament, registerForTournament, manualRegister };
-
-

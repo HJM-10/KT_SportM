@@ -1,108 +1,88 @@
-import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
+import '../services/live_refresh.dart';
 import '../services/api_service.dart';
+import '../widgets/clubhouse.dart';
+import '../widgets/venue_card.dart';
 import 'slots_screen.dart';
 
 class VenuesScreen extends StatefulWidget {
   final int sportId;
   final String sportName;
-
-  const VenuesScreen({super.key, required this.sportId, required this.sportName});
-
+  const VenuesScreen(
+      {super.key, required this.sportId, required this.sportName});
   @override
   State<VenuesScreen> createState() => _VenuesScreenState();
 }
 
-class _VenuesScreenState extends State<VenuesScreen> with LiveRefresh<VenuesScreen> {
+class _VenuesScreenState extends State<VenuesScreen>
+    with LiveRefresh<VenuesScreen> {
+  final _api = ApiService();
+  List<dynamic> _venues = [];
+  bool _loading = true;
+  String? _error;
   @override
   List<String> get liveResources => ['venues'];
   @override
-  Future<void> refreshForLiveUpdates() => _fetchVenues();
-  final ApiService _apiService = ApiService();
-  List<dynamic> _venues = [];
-  bool _isLoading = true;
-
+  Future<void> refreshForLiveUpdates() => _fetch();
   @override
   void initState() {
     super.initState();
-    _fetchVenues();
+    _fetch();
   }
 
-  Future<void> _fetchVenues() async {
+  Future<void> _fetch() async {
     try {
-      final res = await _apiService.dio.get('/venues?sportId=${widget.sportId}');
+      final response = await _api.dio
+          .get('/venues', queryParameters: {'sportId': widget.sportId});
       if (mounted) {
         setState(() {
-          _venues = res.data['data'];
-          _isLoading = false;
+          _venues = response.data['data'];
+          _error = null;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load venues')),
-        );
+        setState(() => _error = 'Check your connection and try again.');
       }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _bookSlot(int venueId) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => SlotsScreen(venueId: venueId)));
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('${widget.sportName} Venues')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _venues.isEmpty
-              ? const Center(child: Text('No venues available for this sport', style: TextStyle(color: Colors.grey)))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _venues.length,
-                  itemBuilder: (context, index) {
-                    final venue = _venues[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              venue['name'],
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(venue['description'] ?? 'No description', style: const TextStyle(color: Colors.grey)),
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Rs. ${venue['pricePerSlot']}/slot',
-                                  style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => _bookSlot(venue['id']),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Theme.of(context).primaryColor,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                  child: const Text('Book'),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-    );
-  }
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+            title: Text(widget.sportName), actions: const [ThemeToggle()]),
+        body: RefreshIndicator(
+            onRefresh: _fetch,
+            child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                children: [
+                  const ClubhouseHeading('Your court is calling.',
+                      subtitle: 'Choose a venue, then find a time that fits.'),
+                  const SizedBox(height: 24),
+                  if (_loading)
+                    const Center(child: CircularProgressIndicator())
+                  else if (_error != null)
+                    ClubhouseEmpty(
+                        title: 'Venues could not load',
+                        message: _error!,
+                        onRetry: _fetch)
+                  else if (_venues.isEmpty)
+                    const ClubhouseEmpty(
+                        title: 'No venues just yet',
+                        message: 'Try another sport or check back soon.')
+                  else
+                    ..._venues.map((v) => VenueCard(
+                        venue: Map<String, dynamic>.from(v),
+                        onBook: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => SlotsScreen(
+                                    venueId: v['id'],
+                                    initialVenue:
+                                        Map<String, dynamic>.from(v)))))),
+                ])),
+      );
 }
-

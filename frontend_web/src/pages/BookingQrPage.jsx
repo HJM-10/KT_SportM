@@ -6,5 +6,9 @@ export default function BookingQrPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => { api.get(`/bookings/${id}/qr`).then(r => setData(r.data.data)).catch(e => setError(e.response?.data?.message || 'Could not load QR code')); }, [id]);
-  return <div className="card text-center"><h1>Booking #{id}</h1>{error ? <p role="alert">{error}</p> : !data ? <p>Loading…</p> : data.booking.status !== 'CONFIRMED' ? <p>Check-in is available only for a confirmed booking.</p> : <><img src={data.qrCode} alt={`Check-in QR for booking ${id}`} width="260" /><p>Present this code to arena staff. It can be checked in once.</p></>}</div>;
+  return <div className="card text-center"><h1>Booking #{id}</h1>{error ? <p role="alert">{error}</p> : !data ? <p>Loading…</p> : <>
+    {data.qrCode && <img src={data.qrCode} alt={`Check-in QR for booking ${id}`} width="260" />}
+    <p>{data.entryPass.message}</p>
+    {data.qrCode && <p>Arrive during your booked session, before {new Date(data.entryPass.expiresAt).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour: 'numeric', minute: '2-digit' })} PKT. The pass expires when the session ends and can be used once.</p>}
+  </>}</div>;
 }

@@ -10,5 +10,5 @@ test.each([['tournaments','tournament'],['events','event']])('%s list carries on
  const res=await request(app).get('/api/'+route).set('Authorization','Bearer '+token);
  expect(res.status).toBe(200);
  expect(res.body.data[0].registrations).toEqual([{id:10,payment:null}]);
- expect(prisma[model].findMany.mock.calls[0][0].include.registrations).toEqual({where:{userId:3},select:{id:true,payment:{select:{status:true}}}});
+ expect(prisma[model].findMany.mock.calls[0][0].include.registrations).toEqual({where:{userId:3,status:'ACTIVE'},select:{id:true,payment:{select:{status:true}}}});
 });

@@ -4,6 +4,7 @@ import '../providers/theme_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../services/api_errors.dart';
+import '../widgets/clubhouse.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -114,10 +115,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = Provider.of<AuthProvider>(context).user;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text('Profile & appearance')),
       body: ListView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         children: [
+          Row(children: [
+            CircleAvatar(
+                radius: 28,
+                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                child: Icon(Icons.person_outline,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    size: 30)),
+            const SizedBox(width: 14),
+            Expanded(
+                child: Text(user?['name'] ?? 'Player',
+                    style: const TextStyle(
+                        fontSize: 26, fontWeight: FontWeight.w800))),
+          ]),
+          const SizedBox(height: 24),
+          const ClubhouseHeading('Make yourself at home.'),
+          const SizedBox(height: 24),
+          Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Your appearance',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 8),
+                        const Text(
+                            'Warm days. Calm evenings. Choose what feels right.'),
+                        const SizedBox(height: 16),
+                        Wrap(spacing: 8, runSpacing: 8, children: [
+                          for (final mode in ThemeMode.values)
+                            ChoiceChip(
+                                avatar: Icon(
+                                    mode == ThemeMode.light
+                                        ? Icons.light_mode_outlined
+                                        : mode == ThemeMode.dark
+                                            ? Icons.dark_mode_outlined
+                                            : Icons.brightness_auto_outlined,
+                                    size: 18),
+                                label: Text(mode == ThemeMode.light
+                                    ? 'Light'
+                                    : mode == ThemeMode.dark
+                                        ? 'Dark'
+                                        : 'System'),
+                                selected: themeProvider.themeMode == mode,
+                                onSelected: (_) =>
+                                    themeProvider.toggleTheme(mode)),
+                        ]),
+                      ]))),
+          const SizedBox(height: 20),
+          Card(
+              margin: EdgeInsets.zero,
+              child: Column(children: [
+                ListTile(
+                    leading: const Icon(Icons.receipt_long_outlined),
+                    title: const Text('Payments & invoices'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pushNamed(context, '/payments')),
+                ListTile(
+                    leading: const Icon(Icons.card_membership_outlined),
+                    title: const Text('Membership'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pushNamed(context, '/membership')),
+                ListTile(
+                    leading: const Icon(Icons.support_agent),
+                    title: const Text('Help & support'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pushNamed(context, '/complaints')),
+              ])),
+          const SizedBox(height: 28),
           // PROFILE SECTION
           const Text('Profile Information',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -128,9 +200,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 labelText: 'Full Name', border: OutlineInputBorder()),
           ),
           const SizedBox(height: 16),
-          TextField(
+          TextFormField(
             enabled: false,
-            controller: TextEditingController(text: user?['email'] ?? ''),
+            initialValue: user?['email'] ?? '',
             decoration: const InputDecoration(
                 labelText: 'Email Address', border: OutlineInputBorder()),
           ),
@@ -146,7 +218,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: _isProfileLoading ? null : _updateProfile,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: Theme.of(context).primaryColor,
             ),
             child: _isProfileLoading
                 ? const CircularProgressIndicator(color: Colors.white)
@@ -187,7 +258,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: _isPasswordLoading ? null : _changePassword,
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16),
-              backgroundColor: Theme.of(context).primaryColor,
             ),
             child: _isPasswordLoading
                 ? const CircularProgressIndicator(color: Colors.white)
@@ -197,23 +267,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 32),
           const Divider(),
           const SizedBox(height: 16),
-
-          // APPEARANCE SECTION
-          const Text('Appearance',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          SegmentedButton<ThemeMode>(
-            segments: const [
-              ButtonSegment(value: ThemeMode.light, label: Text('Light')),
-              ButtonSegment(value: ThemeMode.dark, label: Text('Dark')),
-              ButtonSegment(value: ThemeMode.system, label: Text('System')),
-            ],
-            selected: {themeProvider.themeMode},
-            onSelectionChanged: (values) =>
-                themeProvider.toggleTheme(values.first),
-          ),
-
-          const SizedBox(height: 32),
-          const Divider(),
 
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),

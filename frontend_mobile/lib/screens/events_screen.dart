@@ -1,5 +1,7 @@
+import '../services/api_errors.dart';
 import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
 
@@ -100,12 +102,19 @@ class _EventsScreenState extends State<EventsScreen>
     try {
       final res = await _apiService.dio.post('/events/$eventId/register');
       if (res.data['success']) {
+        var feedback = 'Registration saved.';
         if (res.data['data']?['paymentId'] != null) {
-          await PaymentService.checkout(res.data['data']['paymentId']);
+          feedback = 'Registration saved. Payment is pending until verified.';
+          try {
+            await PaymentService.checkout(res.data['data']['paymentId']);
+          } catch (_) {
+            feedback =
+                'Registration saved. Online checkout is unavailable; contact staff to pay before the hold expires.';
+          }
         }
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration processed successfully!')),
+          SnackBar(content: Text(feedback)),
         );
         _fetchEvents();
       }
@@ -119,10 +128,38 @@ class _EventsScreenState extends State<EventsScreen>
     }
   }
 
+  Future<void> _cancelRegistration(int eventId, int regId) async {
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+                title: const Text('Cancel registration?'),
+                content: const Text(
+                    'Cancel at least 2 hours before start. Paid fees are queued for a full refund; staff handles cash refunds.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, false),
+                      child: const Text('Keep entry')),
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, true),
+                      child: const Text('Cancel entry'))
+                ]));
+    if (confirmed != true) return;
+    try {
+      await _apiService.dio
+          .post('/events/$eventId/registrations/$regId/cancel');
+      await _fetchEvents();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+      }
+    }
+  }
+
   Color _statusColor(String? status) {
     switch (status) {
       case 'UPCOMING':
-        return const Color(0xFF6366F1);
+        return Theme.of(context).colorScheme.primary;
       case 'ONGOING':
         return Colors.orange;
       case 'COMPLETED':
@@ -253,8 +290,11 @@ class _EventsScreenState extends State<EventsScreen>
                                   // Type label
                                   Text(
                                     _typeLabel(ev['type'] as String?),
-                                    style: const TextStyle(
-                                        color: Color(0xFF818CF8), fontSize: 13),
+                                    style: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                        fontSize: 13),
                                   ),
                                   const SizedBox(height: 8),
 
@@ -286,6 +326,8 @@ class _EventsScreenState extends State<EventsScreen>
                                   ),
                                   const SizedBox(height: 4),
 
+                                  Text(
+                                      '${DateFormat('dd MMM yyyy, HH:mm').format(DateTime.parse(ev['startDate']).toUtc().add(const Duration(hours: 5)))} PKT'),
                                   // Fee
                                   Row(
                                     children: [
@@ -311,6 +353,15 @@ class _EventsScreenState extends State<EventsScreen>
 
                                   const SizedBox(height: 16),
 
+                                  if (registered)
+                                    TextButton(
+                                        onPressed: () => _cancelRegistration(
+                                            ev['id'],
+                                            registrations.first['id']),
+                                        child:
+                                            const Text('Cancel registration')),
+                                  const Text(
+                                      'Unpaid places expire after 30 minutes. Cancel at least 2 hours before start for a full refund.'),
                                   // Register button
                                   SizedBox(
                                     width: double.infinity,
@@ -322,7 +373,7 @@ class _EventsScreenState extends State<EventsScreen>
                                           : null,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: isUpcoming
-                                            ? const Color(0xFF6366F1)
+                                            ? const Color(0xFF174C36)
                                             : Colors.grey.shade600,
                                         shape: RoundedRectangleBorder(
                                             borderRadius:

@@ -1,17 +1,23 @@
 const prisma = require('../lib/prisma');
+const transaction = require('../lib/transaction');
 const { getStripe } = require('../lib/stripe');
+const { assertPayable, queueRefund, emitChange } = require('../lib/reservation-lifecycle');
 
 async function settle(session) {
   if (session.payment_status !== 'paid') return;
   const id = Number(session.metadata?.paymentId);
   if (!Number.isSafeInteger(id)) throw new Error('Missing payment reference');
-  await prisma.$transaction(async tx => {
+  await transaction(async tx => {
+    await tx.payment.update({ where: { id }, data: { updatedAt: new Date() } });
     const payment = await tx.payment.findUnique({ where: { id } });
     if (!payment || session.amount_total !== Math.round(payment.amount * 100) || session.currency !== payment.currency.toLowerCase()) throw new Error('Payment amount or currency mismatch');
-    if (payment.status === 'PAID') return;
-    if (payment.status !== 'PENDING') throw new Error('Payment is no longer pending');
-    const claimed = await tx.payment.updateMany({ where: { id, status: 'PENDING' }, data: { status: 'PAID', stripePaymentIntentId: session.payment_intent } });
-    if (!claimed.count) return;
+    if (!session.payment_intent) throw new Error('Missing provider payment intent');
+    if (payment.stripePaymentIntentId === session.payment_intent) return;
+    if (['PAID', 'REFUNDED'].includes(payment.status)) { await queueRefund(tx, payment, session.payment_intent); return; }
+    let payable = true;
+    try { await assertPayable(tx, payment); } catch { payable = false; }
+    await tx.payment.update({ where: { id }, data: { status: 'PAID', stripePaymentIntentId: session.payment_intent } });
+    if (!payable) { await require('../lib/reservation-lifecycle').releaseReservation(tx, payment); await queueRefund(tx, payment, session.payment_intent); return; }
     if (payment.bookingId) {
       const changed = await tx.booking.updateMany({ where: { id: payment.bookingId, status: 'PENDING_PAYMENT' }, data: { status: 'CONFIRMED' } });
       if (!changed.count) throw new Error('Booking requires payment reconciliation');
@@ -19,6 +25,7 @@ async function settle(session) {
     if (payment.membershipId) await tx.membership.update({ where: { id: payment.membershipId }, data: { isActive: true } });
     await tx.notification.create({ data: { userId: payment.userId, title: 'Payment received', body: `Payment #${id} of ${payment.currency} ${payment.amount} was received.`, type: 'PAYMENT' } });
   });
+  emitChange();
 }
 
 async function checkout(req, res, next) {
@@ -36,14 +43,26 @@ async function checkout(req, res, next) {
       if (!booking || booking.status !== 'PENDING_PAYMENT') return res.status(409).json({ success: false, message: 'Booking no longer awaits payment' });
     }
     const origin = process.env.PUBLIC_API_URL || 'http://localhost:5000';
-    const session = await getStripe().checkout.sessions.create({
+    const session = await transaction(async tx => {
+      await tx.payment.update({ where: { id }, data: { updatedAt: new Date() } });
+      const current = await tx.payment.findUnique({ where: { id } });
+      await assertPayable(tx, current);
+      if (current.stripeCheckoutSessionId) {
+        const previous = await getStripe().checkout.sessions.retrieve(current.stripeCheckoutSessionId);
+        if (previous.status !== 'open') throw Object.assign(new Error('Checkout completed or expired; refresh your payments'), { status: 409 });
+        return previous;
+      }
+      const created = await getStripe().checkout.sessions.create({
       mode: 'payment',
       client_reference_id: String(id), metadata: { paymentId: String(id) },
       payment_intent_data: { metadata: { paymentId: String(id) } },
       line_items: [{ price_data: { currency: payment.currency.toLowerCase(), unit_amount: Math.round(payment.amount * 100), product_data: { name: `Smart Sports Hub ${payment.purpose.replaceAll('_', ' ')} #${id}` } }, quantity: 1 }],
       success_url: `${origin}/api/payments/return?status=success`,
       cancel_url: `${origin}/api/payments/return?status=cancelled`,
-    }, { idempotencyKey: `checkout-${id}-${Math.floor(Date.now() / 1800000)}` });
+    }, { idempotencyKey: `checkout-${id}` });
+      await tx.payment.update({ where: { id }, data: { stripeCheckoutSessionId: created.id } });
+      return created;
+    }, { timeout: 20000 });
     res.json({ success: true, data: { url: session.url } });
   } catch (error) { next(error); }
 }

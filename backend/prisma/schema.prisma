@@ -139,10 +139,24 @@ model Venue {
   pricePerSlot Float         @default(0)
   imageUrl     String?
   isActive     Boolean       @default(true)
+  openingTime  String        @default("06:00")
+  closingTime  String        @default("23:00")
+  closedWeekdays Json?
+  closures     VenueClosure[]
   slots        BookingSlot[]
   reviews      Review[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+}
+
+model VenueClosure {
+  id Int @id @default(autoincrement())
+  venueId Int
+  venue Venue @relation(fields: [venueId], references: [id])
+  startAt DateTime
+  endAt DateTime
+  reason String
+  @@index([venueId, startAt, endAt])
 }
 
 model BookingSlot {
@@ -193,6 +207,9 @@ model Payment {
   purpose               PaymentPurpose
   stripePaymentIntentId String?        @unique
   stripeClientSecret    String?
+  stripeCheckoutSessionId String? @unique
+  expiresAt             DateTime?
+  refunds               Refund[]
   bookingId             Int?           @unique
   booking               Booking?       @relation(fields: [bookingId], references: [id])
   tournamentRegId       Int?           @unique
@@ -205,6 +222,20 @@ model Payment {
   rental                EquipmentRental? @relation(fields: [rentalId], references: [id])
   createdAt             DateTime       @default(now())
   updatedAt             DateTime       @updatedAt
+}
+
+model Refund {
+  id Int @id @default(autoincrement())
+  paymentId Int
+  payment Payment @relation(fields: [paymentId], references: [id])
+  sourceKey String @unique
+  providerIntentId String?
+  amount Float
+  status String @default("PENDING")
+  reference String?
+  error String? @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─── Tournament & Match ───────────────────────────────────────────────────────
@@ -222,6 +253,7 @@ model Tournament {
   maxTeams      Int                @default(8)
   entryFee      Float              @default(0)
   imageUrl      String?
+  champion      String?
   matches       Match[]
   registrations TeamRegistration[]
   createdAt     DateTime           @default(now())
@@ -242,6 +274,8 @@ model Match {
   winner       String?
   round        String?
   isCompleted  Boolean    @default(false)
+  durationMinutes Int @default(120)
+  isBye Boolean @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 }
@@ -255,6 +289,7 @@ model TeamRegistration {
   teamName     String
   paymentId    Int?
   payment      Payment?
+  status       String @default("ACTIVE")
   createdAt    DateTime   @default(now())
 
   @@unique([tournamentId, userId])
@@ -320,6 +355,8 @@ model EventRegistration {
   userId    Int
   user      User     @relation(fields: [userId], references: [id])
   payment   Payment?
+  status    String @default("ACTIVE")
+  attendedAt DateTime?
   createdAt DateTime @default(now())
 
   @@unique([eventId, userId])
