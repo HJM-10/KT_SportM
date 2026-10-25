@@ -31,6 +31,9 @@ Map<String, dynamic>? slotBooking(Map<String, dynamic> slot) {
 }
 
 String slotLabel(Map<String, dynamic> slot, String date, DateTime now) {
+  if (slot['unavailableReason'] != null && slotBooking(slot) == null) {
+    return 'Unavailable';
+  }
   final booking = slotBooking(slot);
   if (booking?['status'] == 'PENDING_PAYMENT') return 'Awaiting payment';
   if (booking?['status'] == 'SCANNED') return 'Checked in';

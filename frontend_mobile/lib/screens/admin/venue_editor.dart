@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../services/api_errors.dart';
 import '../../widgets/clubhouse.dart';
@@ -17,7 +18,11 @@ class _AdminVenueEditorState extends State<AdminVenueEditor> {
       _description = TextEditingController(),
       _price = TextEditingController(),
       _capacity = TextEditingController(),
-      _image = TextEditingController();
+      _image = TextEditingController(),
+      _opening = TextEditingController(),
+      _closing = TextEditingController();
+  List<int> _closedDays = [];
+  List<Map<String, dynamic>> _closures = [];
   int? _sportId;
   bool _active = true, _saving = false;
   @override
@@ -29,6 +34,12 @@ class _AdminVenueEditorState extends State<AdminVenueEditor> {
     _price.text = '${v?['pricePerSlot'] ?? 0}';
     _capacity.text = v?['capacity']?.toString() ?? '';
     _image.text = v?['imageUrl'] ?? '';
+    _opening.text = v?['openingTime'] ?? '06:00';
+    _closing.text = v?['closingTime'] ?? '23:00';
+    _closedDays = List<int>.from(v?['closedWeekdays'] ?? []);
+    _closures = (v?['closures'] as List? ?? [])
+        .map((c) => Map<String, dynamic>.from(c))
+        .toList();
     _sportId = v?['sportId'] ??
         v?['sport']?['id'] ??
         (widget.sports.isEmpty ? null : widget.sports.first['id']);
@@ -37,7 +48,15 @@ class _AdminVenueEditorState extends State<AdminVenueEditor> {
 
   @override
   void dispose() {
-    for (final c in [_name, _description, _price, _capacity, _image]) {
+    for (final c in [
+      _name,
+      _description,
+      _price,
+      _capacity,
+      _image,
+      _opening,
+      _closing
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -55,7 +74,17 @@ class _AdminVenueEditorState extends State<AdminVenueEditor> {
         'capacity':
             _capacity.text.trim().isEmpty ? null : int.parse(_capacity.text),
         'imageUrl': _image.text.trim().isEmpty ? null : _image.text.trim(),
-        'isActive': _active
+        'isActive': _active,
+        'openingTime': _opening.text,
+        'closingTime': _closing.text,
+        'closedWeekdays': _closedDays,
+        'closures': _closures
+            .map((c) => {
+                  'startAt': c['startAt'],
+                  'endAt': c['endAt'],
+                  'reason': c['reason']
+                })
+            .toList()
       };
       if (widget.venue == null) {
         await ApiService().dio.post('/venues', data: data);
@@ -73,6 +102,57 @@ class _AdminVenueEditorState extends State<AdminVenueEditor> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  Future<DateTime?> _pickMoment() async {
+    final date = await showDatePicker(
+        context: context,
+        initialDate: DateTime.now(),
+        firstDate: DateTime.now().subtract(const Duration(days: 1)),
+        lastDate: DateTime.now().add(const Duration(days: 730)));
+    if (date == null || !mounted) return null;
+    final time = await showTimePicker(
+        context: context, initialTime: const TimeOfDay(hour: 10, minute: 0));
+    return time == null
+        ? null
+        : DateTime.parse(
+            '${date.toIso8601String().split('T')[0]}T${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00+05:00');
+  }
+
+  Future<void> _addClosure() async {
+    final start = await _pickMoment();
+    if (start == null || !mounted) return;
+    final end = await _pickMoment();
+    if (end == null || !mounted) return;
+    final reason = TextEditingController();
+    final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+                title: const Text('Closure reason'),
+                content: TextField(
+                    controller: reason,
+                    decoration: const InputDecoration(labelText: 'Reason')),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c, false),
+                      child: const Text('Cancel')),
+                  TextButton(
+                      onPressed: () {
+                        if (reason.text.trim().isNotEmpty &&
+                            end.isAfter(start)) {
+                          Navigator.pop(c, true);
+                        }
+                      },
+                      child: const Text('Add closure'))
+                ]));
+    if (ok == true && mounted) {
+      setState(() => _closures.add({
+            'startAt': start.toUtc().toIso8601String(),
+            'endAt': end.toUtc().toIso8601String(),
+            'reason': reason.text.trim()
+          }));
+    }
+    reason.dispose();
   }
 
   @override
@@ -161,6 +241,61 @@ class _AdminVenueEditorState extends State<AdminVenueEditor> {
                       : 'Enter a full HTTP or HTTPS image URL.';
                 }),
             const SizedBox(height: 16),
+            TextFormField(
+                controller: _opening,
+                decoration: const InputDecoration(
+                    labelText: 'Opens (HH:MM, Pakistan time)'),
+                validator: (v) =>
+                    RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(v ?? '')
+                        ? null
+                        : 'Use HH:MM'),
+            TextFormField(
+                controller: _closing,
+                decoration: const InputDecoration(
+                    labelText: 'Closes (HH:MM, Pakistan time)'),
+                validator: (v) =>
+                    RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(v ?? '') &&
+                            v!.compareTo(_opening.text) > 0
+                        ? null
+                        : 'Choose a closing time after opening'),
+            const Text('Closed weekdays'),
+            Wrap(
+                spacing: 8,
+                children: List.generate(
+                    7,
+                    (i) => FilterChip(
+                        label: Text([
+                          'Sun',
+                          'Mon',
+                          'Tue',
+                          'Wed',
+                          'Thu',
+                          'Fri',
+                          'Sat'
+                        ][i]),
+                        selected: _closedDays.contains(i),
+                        onSelected: _saving
+                            ? null
+                            : (v) => setState(() {
+                                  if (v) {
+                                    _closedDays.add(i);
+                                  } else {
+                                    _closedDays.remove(i);
+                                  }
+                                })))),
+            ..._closures.map((c) => ListTile(
+                title: Text(c['reason']),
+                subtitle: Text(
+                    '${DateFormat('dd MMM, HH:mm').format(DateTime.parse(c['startAt']).toUtc().add(const Duration(hours: 5)))} to ${DateFormat('dd MMM, HH:mm').format(DateTime.parse(c['endAt']).toUtc().add(const Duration(hours: 5)))} PKT'),
+                trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: _saving
+                        ? null
+                        : () => setState(() => _closures.remove(c))))),
+            TextButton(
+                onPressed: _saving ? null : _addClosure,
+                child: const Text(
+                    'Add closure: choose start, then end (Pakistan time)')),
             if (widget.venue != null)
               SwitchListTile(
                   contentPadding: EdgeInsets.zero,

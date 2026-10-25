@@ -20,7 +20,7 @@ const TournamentsPage = () => {
   const [adminTournament, setAdminTournament] = useState(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showAddRegForm, setShowAddRegForm] = useState(false);
-  const [newRegData, setNewRegData] = useState({ teamName: '', userId: '', paymentStatus: 'PAID' });
+  const [newRegData, setNewRegData] = useState({ teamName: '', userId: '', paymentStatus: 'PENDING', receivedInPerson: false, waiverReason: '' });
   const [users, setUsers] = useState([]);
 
   const [sports, setSports] = useState([]);
@@ -102,7 +102,7 @@ const TournamentsPage = () => {
       if (res.data.success) {
         setAdminTournament(res.data.data);
         setShowAddRegForm(false);
-        setNewRegData({ teamName: '', userId: '', paymentStatus: 'PAID' });
+        setNewRegData({ teamName: '', userId: '', paymentStatus: 'PENDING', receivedInPerson: false, waiverReason: '' });
         setShowAdminModal(true);
       }
     } catch (err) {
@@ -210,7 +210,7 @@ const TournamentsPage = () => {
                 <div className="tournament-sport-badge">
                   <SportIcon iconName={t.sport?.icon} size={14} /> {t.sport?.name}
                 </div>
-                <h3 className="tournament-name">{t.name}</h3>
+                <h3 className="tournament-name">{t.name}</h3>{t.champion && <p>Champion: {t.champion}</p>}
                 
                 <div className="tournament-meta mb-16">
                   <div className="tournament-meta-item"><Calendar size={14} /> {new Date(t.startDate).toLocaleDateString()}</div>
@@ -223,7 +223,8 @@ const TournamentsPage = () => {
                     {t.status}
                   </span>
                   
-                  {!isAdmin && t.status === 'UPCOMING' && (
+                  {!isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => handleViewRegistrations(t.id)}>Results & standings</button>}
+                  {!isAdmin && t.status === 'UPCOMING' && !t.registrations?.length && (
                     <button className="btn btn-primary btn-sm" onClick={() => handleRegister(t.id)}>
                       Register Now
                     </button>
@@ -265,7 +266,7 @@ const TournamentsPage = () => {
             <div className="modal-header">
               <h2 className="modal-title">Registrations: {adminTournament.name}</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
-                {!showAddRegForm && (
+                {isAdmin && !showAddRegForm && adminTournament.status === 'UPCOMING' && (
                   <button className="btn btn-primary btn-sm" onClick={() => setShowAddRegForm(true)}>+ Add</button>
                 )}
                 <button className="modal-close" onClick={() => setShowAdminModal(false)}>×</button>
@@ -274,6 +275,8 @@ const TournamentsPage = () => {
             
             {showAddRegForm && (
               <form onSubmit={handleManualRegister} style={{ padding: '16px', background: 'var(--bg)', borderRadius: 'var(--radius-sm)', marginBottom: '16px', border: '1px solid var(--border-focus)' }}>
+                {newRegData.paymentStatus === 'PAID' && <label><input type="checkbox" required checked={newRegData.receivedInPerson} onChange={e => setNewRegData({ ...newRegData, receivedInPerson: e.target.checked })} /> I received this entry fee in person</label>}
+                {newRegData.paymentStatus === 'FREE' && <label>Waiver reason<input className="form-input" required value={newRegData.waiverReason} onChange={e => setNewRegData({ ...newRegData, waiverReason: e.target.value })} /></label>}
                 <h4 style={{ marginBottom: '12px', color: 'var(--primary-light)' }}>Manual Registration</h4>
                 <div className="grid-3" style={{ gap: '12px' }}>
                   <div className="form-group">
@@ -290,7 +293,7 @@ const TournamentsPage = () => {
                   <div className="form-group">
                     <label className="form-label">Payment Status</label>
                     <select className="form-input" value={newRegData.paymentStatus} onChange={e => setNewRegData({...newRegData, paymentStatus: e.target.value})}>
-                      <option value="PAID">PAID</option>
+                      <option value="PENDING">Pending payment</option><option value="PAID">Cash received</option>
                       <option value="FREE">FREE</option>
                     </select>
                   </div>
@@ -302,6 +305,8 @@ const TournamentsPage = () => {
               </form>
             )}
 
+            {adminTournament.champion && <h3>Champion: {adminTournament.champion}</h3>}
+            {!!adminTournament.standings?.length && <div className="table-wrapper"><table><thead><tr><th>Team</th><th>Played</th><th>W / D / L</th><th>Difference</th><th>Points</th></tr></thead><tbody>{adminTournament.standings.map(r => <tr key={r.team}><td>{r.team}</td><td>{r.played}</td><td>{r.won} / {r.drawn} / {r.lost}</td><td>{r.difference}</td><td>{r.points}</td></tr>)}</tbody></table></div>}
             <div className="table-wrapper">
               <table>
                 <thead>
@@ -314,7 +319,7 @@ const TournamentsPage = () => {
                 <tbody>
                   {adminTournament.registrations.map(r => (
                     <tr key={r.id}>
-                      <td style={{fontWeight: 600}}>{r.teamName}</td>
+                      <td style={{fontWeight: 600}}>{r.teamName} · {r.status}</td>
                       <td>{r.user?.name}</td>
                       <td>
                         {r.payment ? (
@@ -377,7 +382,7 @@ const TournamentsPage = () => {
               </div>
               <div className="grid-2">
                 <div className="form-group">
-                  <label className="form-label">Entry Fee ($)</label>
+                  <label className="form-label">Entry Fee (Rs.)</label>
                   <input type="number" required min="0" step="0.01" className="form-input" value={formData.entryFee} onChange={e => setFormData({...formData, entryFee: e.target.value})} />
                 </div>
                 <div className="form-group">

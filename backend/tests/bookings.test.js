@@ -5,7 +5,10 @@ const jwt = require('jsonwebtoken');
 
 jest.mock('../src/lib/prisma', () => ({
   user: { findUnique: jest.fn().mockResolvedValue({ id: 1, role: 'ADMIN', isActive: true }) },
-  venue: { update: jest.fn().mockResolvedValue({ id: 1 }) },
+  venue: { update: jest.fn().mockResolvedValue({ id: 1, isActive: true }) },
+  venueClosure: { findFirst: jest.fn().mockResolvedValue(null) },
+  match: { findMany: jest.fn().mockResolvedValue([]) },
+  event: { findMany: jest.fn().mockResolvedValue([]) },
   bookingSlot: {
     findMany: jest.fn(),
     create: jest.fn(),

@@ -1,3 +1,4 @@
+import 'event_attendance_screen.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
@@ -53,6 +54,8 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
   void _showAddEventDialog({dynamic event}) async {
     final nameCtrl = TextEditingController(text: event?['name'] ?? '');
     final venueCtrl = TextEditingController(text: event?['venue'] ?? '');
+    final capacityCtrl =
+        TextEditingController(text: '${event?['maxParticipants'] ?? 50}');
     final feeCtrl = TextEditingController(
         text: event != null ? event['fee'].toString() : '');
 
@@ -150,6 +153,12 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
                             color: Theme.of(context).colorScheme.primary),
                       ),
                       const SizedBox(height: 16),
+                      TextField(
+                          controller: capacityCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration:
+                              inputDeco('Maximum participants', Icons.people)),
+                      const SizedBox(height: 16),
                       InkWell(
                         onTap: () async {
                           final d = await showDatePicker(
@@ -160,7 +169,15 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
                             lastDate:
                                 DateTime.now().add(const Duration(days: 365)),
                           );
-                          if (d != null) setDialogState(() => selectedDate = d);
+                          if (d == null || !context.mounted) return;
+                          final clock = await showTimePicker(
+                              context: context,
+                              initialTime:
+                                  const TimeOfDay(hour: 10, minute: 0));
+                          if (clock != null) {
+                            setDialogState(() => selectedDate = DateTime(d.year,
+                                d.month, d.day, clock.hour, clock.minute));
+                          }
                         },
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
@@ -181,7 +198,7 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
                               Text(
                                 selectedDate == null
                                     ? 'Select Event Date'
-                                    : selectedDate.toString().split(' ')[0],
+                                    : selectedDate.toString().substring(0, 16),
                                 style: TextStyle(
                                   color: selectedDate == null
                                       ? Colors.grey
@@ -220,8 +237,11 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
                                 final data = {
                                   'name': nameCtrl.text,
                                   'sportId': selectedSportId,
-                                  'startDate': selectedDate!.toIso8601String(),
+                                  'startDate':
+                                      selectedDate!.toUtc().toIso8601String(),
                                   'venue': venueCtrl.text,
+                                  'maxParticipants':
+                                      int.tryParse(capacityCtrl.text),
                                   'fee': feeCtrl.text.isNotEmpty
                                       ? num.parse(feeCtrl.text)
                                       : 0,
@@ -281,6 +301,10 @@ class _AdminEventsScreenState extends State<AdminEventsScreen> {
                 final ev = _events[index];
                 return ListTile(
                   title: Text(ev['name']),
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => EventAttendanceScreen(id: ev['id']))),
                   subtitle: Text('Venue: ${(ev['venue'] as String?) ?? 'N/A'}'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,

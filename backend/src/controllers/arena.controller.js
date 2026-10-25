@@ -16,10 +16,11 @@ const getArenaDesk = async (req, res) => {
     const date = req.query.date === undefined ? pakistanDay(new Date()) : req.query.date;
     const bounds = dayBounds(date);
     if (!bounds) return res.status(400).json({ success: false, message: 'A valid YYYY-MM-DD date is required' });
-    const [venues, sports, paid] = await Promise.all([
+    const [venues, sports, paid, matches, events] = await Promise.all([
       prisma.venue.findMany({
         orderBy: { name: 'asc' },
         include: {
+          closures: true,
           sport: { select: { id: true, name: true, isActive: true, imageUrl: true } },
           slots: {
             where: { date: bounds.date }, orderBy: { startTime: 'asc' },
@@ -39,7 +40,20 @@ const getArenaDesk = async (req, res) => {
         where: { status: 'PAID', updatedAt: { gte: bounds.start, lt: bounds.end } },
         _sum: { amount: true }, _count: { id: true },
       }),
+      prisma.match.findMany({ where: { isBye: false, scheduledAt: { lt: bounds.end } } }),
+      prisma.event.findMany({ where: { status: { not: 'CANCELLED' }, startDate: { lt: bounds.end } } }),
     ]);
+    const { startsAt, endsAt } = require('../lib/arena-time');
+    for (const venue of venues) for (const slot of venue.slots) {
+      const start = startsAt(slot), end = endsAt(slot);
+      let reason;
+      if (!venue.isActive || venue.sport?.isActive === false) reason = 'Facility inactive';
+      else if (slot.startTime < venue.openingTime || slot.endTime > venue.closingTime || (venue.closedWeekdays || []).includes(slot.date.getUTCDay())) reason = 'Outside opening hours';
+      else if ((venue.closures || []).some(c => c.startAt < end && c.endAt > start)) reason = 'Facility closed';
+      else if (matches.some(m => m.venue === venue.name && m.scheduledAt < end && new Date(m.scheduledAt.getTime() + m.durationMinutes * 60000) > start)) reason = 'Tournament match';
+      else if (events.some(e => e.venue === venue.name && e.startDate < end && (e.endDate || new Date(e.startDate.getTime() + 7200000)) > start)) reason = 'Event';
+      if (reason) { slot.unavailableReason = reason; slot.isBooked = true; }
+    }
     const bookings = venues.flatMap(venue => venue.slots.flatMap(slot => slot.bookings.map(booking => ({
       ...booking,
       slot: {

@@ -86,7 +86,7 @@ const MyBookingsPage = () => {
     <div>
       <div className="page-header">
         <h1 className="page-title">My Bookings</h1>
-        <div className="page-subtitle">Your reserved slots and history</div>
+        <div className="page-subtitle">Your reserved slots and history. Unpaid holds expire after 30 minutes. Cancel or reschedule at least 2 hours before start; cancellation queues a full refund. Rescheduling keeps the same venue, duration and original price. All session times are Pakistan time.</div>
       </div>
 
       {loading ? (

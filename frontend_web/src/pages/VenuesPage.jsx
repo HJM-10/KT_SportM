@@ -15,7 +15,7 @@ const VenuesPage = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [venueToDelete, setVenueToDelete] = useState(null);
   const [formData, setFormData] = useState({
-    id: null, name: '', description: '', sportId: '', capacity: '', pricePerSlot: '', imageUrl: ''
+    id: null, name: '', description: '', sportId: '', capacity: '', pricePerSlot: '', imageUrl: '', openingTime: '06:00', closingTime: '23:00', closedWeekdays: [], closures: [], isActive: true
   });
 
   const fetchVenues = async () => {
@@ -52,6 +52,8 @@ const VenuesPage = () => {
         capacity: formData.capacity ? parseInt(formData.capacity) : undefined,
         pricePerSlot: formData.pricePerSlot ? parseFloat(formData.pricePerSlot) : 0,
         imageUrl: formData.imageUrl || undefined,
+        openingTime: formData.openingTime, closingTime: formData.closingTime, closedWeekdays: formData.closedWeekdays, isActive: formData.isActive,
+        closures: formData.closures.map(c => ({ reason: c.reason, startAt: new Date(`${c.startAt}:00+05:00`).toISOString(), endAt: new Date(`${c.endAt}:00+05:00`).toISOString() })),
       };
       if (formData.id) {
         await api.put(`/venues/${formData.id}`, payload);
@@ -96,9 +98,11 @@ const VenuesPage = () => {
         capacity: venue.capacity?.toString() || '',
         pricePerSlot: venue.pricePerSlot?.toString() || '',
         imageUrl: venue.imageUrl || '',
+        openingTime: venue.openingTime, closingTime: venue.closingTime, closedWeekdays: venue.closedWeekdays || [], isActive: venue.isActive,
+        closures: (venue.closures || []).map(c => ({ ...c, startAt: new Date(new Date(c.startAt).getTime() + 18000000).toISOString().slice(0,16), endAt: new Date(new Date(c.endAt).getTime() + 18000000).toISOString().slice(0,16) })),
       });
     } else {
-      setFormData({ id: null, name: '', description: '', sportId: '', capacity: '', pricePerSlot: '', imageUrl: '' });
+      setFormData({ id: null, name: '', description: '', sportId: '', capacity: '', pricePerSlot: '', imageUrl: '', openingTime: '06:00', closingTime: '23:00', closedWeekdays: [], closures: [], isActive: true });
     }
     setModalOpen(true);
   };
@@ -165,7 +169,7 @@ const VenuesPage = () => {
                   <td>
                     <span className="badge badge-primary">{venue.sport?.name}</span>
                   </td>
-                  <td>Rs. {venue.pricePerSlot?.toFixed(0)}</td>
+                  <td>Rs. {venue.pricePerSlot?.toFixed(0)}<p>{venue.openingTime}–{venue.closingTime} PKT</p></td>
                   <td>{venue.capacity ?? '—'}</td>
                   <td>
                     <span className={`badge ${venue.isActive ? 'badge-success' : 'badge-danger'}`}>
@@ -198,6 +202,11 @@ const VenuesPage = () => {
               <button className="modal-close" onClick={() => setModalOpen(false)}>×</button>
             </div>
             <form className="modal-form" onSubmit={handleSubmit}>
+              <div className="grid-2">{['openingTime', 'closingTime'].map(key => <label key={key}>{key === 'openingTime' ? 'Opens (Pakistan time)' : 'Closes (Pakistan time)'}<input type="time" className="form-input" required value={formData[key]} onChange={e => setFormData({ ...formData, [key]: e.target.value })} /></label>)}</div>
+              <fieldset><legend>Closed weekdays</legend><div className="flex gap-8">{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day, i) => <label key={day}><input type="checkbox" checked={formData.closedWeekdays.includes(i)} onChange={e => setFormData({ ...formData, closedWeekdays: e.target.checked ? [...formData.closedWeekdays, i] : formData.closedWeekdays.filter(d => d !== i) })} />{day}</label>)}</div></fieldset>
+              <label><input type="checkbox" checked={formData.isActive} onChange={e => setFormData({ ...formData, isActive: e.target.checked })} /> Facility active</label>
+              <fieldset><legend>Closures (Pakistan time)</legend>{formData.closures.map((closure, i) => <div key={i} className="card">{['startAt', 'endAt', 'reason'].map(key => <label key={key}>{key === 'startAt' ? 'From' : key === 'endAt' ? 'Until' : 'Reason'}<input className="form-input" required type={key === 'reason' ? 'text' : 'datetime-local'} value={closure[key]} onChange={e => setFormData({ ...formData, closures: formData.closures.map((c, n) => n === i ? { ...c, [key]: e.target.value } : c) })} /></label>)}<button type="button" className="btn btn-secondary" onClick={() => setFormData({ ...formData, closures: formData.closures.filter((_, n) => n !== i) })}>Remove closure</button></div>)}<button type="button" className="btn btn-secondary" onClick={() => setFormData({ ...formData, closures: [...formData.closures, { startAt: '', endAt: '', reason: '' }] })}>Add closure</button></fieldset>
+
               <div className="form-group">
                 <label className="form-label">Venue Name *</label>
                 <input

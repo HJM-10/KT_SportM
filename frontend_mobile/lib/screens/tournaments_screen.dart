@@ -1,3 +1,4 @@
+import 'tournament_details_screen.dart';
 import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -108,8 +109,15 @@ class _TournamentsScreenState extends State<TournamentsScreen>
           .post('/tournaments/$tournamentId/register', data: {
         'teamName': '${user['name']}\'s Team',
       });
+      var feedback = 'Registration saved.';
       if (response.data['data']['paymentId'] != null) {
-        await PaymentService.checkout(response.data['data']['paymentId']);
+        feedback = 'Registration saved. Payment is pending until verified.';
+        try {
+          await PaymentService.checkout(response.data['data']['paymentId']);
+        } catch (_) {
+          feedback =
+              'Registration saved. Online checkout is unavailable; contact staff to pay before the hold expires.';
+        }
       }
       if (!mounted) return;
       setState(() {
@@ -117,7 +125,7 @@ class _TournamentsScreenState extends State<TournamentsScreen>
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registration processed successfully!')),
+          SnackBar(content: Text(feedback)),
         );
       }
       _fetchTournaments();
@@ -240,6 +248,14 @@ class _TournamentsScreenState extends State<TournamentsScreen>
                                             : Colors.green),
                                   ),
                                 ),
+                                TextButton(
+                                    onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                TournamentDetailsScreen(
+                                                    id: t['id']))),
+                                    child: const Text('Results')),
                                 if (t['status'] == 'UPCOMING')
                                   ElevatedButton(
                                     onPressed: registered || !open

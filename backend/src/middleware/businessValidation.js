@@ -9,6 +9,12 @@ module.exports = (req, res, next) => {
   const body = req.body || {};
   const resource = req.path.split('/')[1];
   const reject = message => res.status(400).json({ success: false, message });
+  if (resource === 'venues') {
+    for (const key of ['openingTime', 'closingTime']) if (body[key] !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(body[key])) return reject(`${key} must be HH:MM`);
+    if (body.openingTime && body.closingTime && body.openingTime >= body.closingTime) return reject('Closing time must follow opening time');
+    if (body.closedWeekdays !== undefined && (!Array.isArray(body.closedWeekdays) || body.closedWeekdays.some(d => !Number.isInteger(d) || d < 0 || d > 6))) return reject('Closed weekdays must be numbers from Sunday (0) to Saturday (6)');
+    if (body.closures !== undefined && (!Array.isArray(body.closures) || body.closures.length > 100 || body.closures.some(c => !c || !Number.isFinite(Date.parse(c.startAt)) || !Number.isFinite(Date.parse(c.endAt)) || new Date(c.startAt) >= new Date(c.endAt) || typeof c.reason !== 'string' || !c.reason.trim() || c.reason.length > 191))) return reject('Closures require a start, later end and reason');
+  }
   for (const key of ['pricePerSlot', 'entryFee', 'fee', 'discountValue', 'minOrderAmount']) {
     if (body[key] !== undefined && body[key] !== null && (!Number.isFinite(Number(body[key])) || Number(body[key]) < 0)) return reject(`${key} must be a nonnegative amount`);
   }

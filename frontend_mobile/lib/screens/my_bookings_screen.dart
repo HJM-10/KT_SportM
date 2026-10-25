@@ -62,7 +62,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
         context: context,
         title: 'Cancel booking?',
         message:
-            'This releases your reserved session. Cancellation rules still apply.',
+            'Cancel at least 2 hours before the session. This releases the court and queues a full refund of paid fees. Staff handles cash refunds.',
         confirmText: 'Cancel booking',
         cancelText: 'Keep booking',
         isDanger: true);
@@ -106,7 +106,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> {
               children: [
                 const ClubhouseHeading('Make time for play.',
                     subtitle:
-                        'Your sessions, from the first serve to the next.'),
+                        'Unpaid holds expire after 30 minutes. Cancel or reschedule at least 2 hours before start. Rescheduling retains your venue, duration and price.'),
                 const SizedBox(height: 20),
                 Wrap(
                     spacing: 8,
