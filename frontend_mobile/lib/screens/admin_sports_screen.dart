@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
-import '../utils/icon_helper.dart';
+import '../widgets/clubhouse.dart';
+import '../widgets/arena_desk.dart';
 
 class AdminSportsScreen extends StatefulWidget {
   const AdminSportsScreen({super.key});
@@ -165,29 +166,62 @@ class _AdminSportsScreenState extends State<AdminSportsScreen> {
               itemBuilder: (context, index) {
                 final sport = _sports[index];
                 return ListTile(
-                  leading: Icon(IconHelper.getIcon(sport['icon'])),
-                  title: Text(sport['name']),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: SizedBox(
+                          width: 56,
+                          child: ClubhouseImage(
+                              sport: sport['name'],
+                              imageUrl: sport['imageUrl'],
+                              height: 56,
+                              showCaption: false))),
+                  title: Text(sport['name'],
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   subtitle: Text('${sport['_count']?['venues'] ?? 0} Venues'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.edit,
-                            color: Theme.of(context).colorScheme.primary),
-                        onPressed: () => _showAddSportDialog(sport: sport),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteSport(sport['id']),
-                      ),
-                    ],
-                  ),
+                  trailing: PopupMenuButton<String>(
+                      tooltip: 'Sport actions',
+                      icon: const ArenaIcon(ArenaSymbol.more),
+                      itemBuilder: (_) => const [
+                            PopupMenuItem(
+                                value: 'edit', child: Text('Edit sport')),
+                            PopupMenuItem(
+                                value: 'deactivate',
+                                child: Text('Deactivate sport'))
+                          ],
+                      onSelected: (action) async {
+                        if (action == 'edit') {
+                          _showAddSportDialog(sport: sport);
+                          return;
+                        }
+                        final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (c) => AlertDialog(
+                                    title: Text('Deactivate ${sport['name']}?'),
+                                    content: const Text(
+                                        'This hides the sport from the customer catalogue.'),
+                                    actions: [
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(c, false),
+                                          child: const Text('Cancel')),
+                                      TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(c, true),
+                                          child: const Text('Deactivate'))
+                                    ]));
+                        if (confirmed == true && mounted) {
+                          _deleteSport(sport['id']);
+                        }
+                      }),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSportDialog(),
-        child: const Icon(Icons.add),
+        tooltip: 'Add sport',
+        child: const ArenaIcon(ArenaSymbol.add),
       ),
     );
   }

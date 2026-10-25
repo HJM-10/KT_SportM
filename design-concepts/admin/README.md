@@ -1,6 +1,6 @@
 # Admin mobile concepts
 
-Selected direction: **Arena Desk** (the second concept). The selection is approved for the next implementation pass; this checkpoint contains the renders only.
+Selected direction: **Arena Desk** (the second concept). The mobile implementation and its verification notes are documented in [IMPLEMENTATION.md](IMPLEMENTATION.md).
 
 Project workflow: continue committing and pushing this project to the existing `New-UI` branch in `HJM-10/KT_SportM`. Do not create a new branch unless the user asks for one.
 

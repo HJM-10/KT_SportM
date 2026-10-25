@@ -5,6 +5,8 @@ const { getRevenueSummary, getBookingAnalytics, getUtilizationReport, getCustome
 
 router.use(authenticate, requireAdmin);
 
+router.get('/arena-desk', require('../controllers/arena.controller').getArenaDesk);
+
 router.get('/revenue', getRevenueSummary);
 router.get('/bookings', getBookingAnalytics);
 router.get('/utilization', getUtilizationReport);

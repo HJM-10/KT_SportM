@@ -46,6 +46,10 @@ class ThemeProvider extends ChangeNotifier {
       onPrimaryContainer:
           dark ? const Color(0xFFD5EFDC) : const Color(0xFF143D2B),
       secondary: dark ? const Color(0xFFD9BB78) : const Color(0xFF785C23),
+      secondaryContainer:
+          dark ? const Color(0xFF4B3C1D) : const Color(0xFFF0E3BC),
+      onSecondaryContainer:
+          dark ? const Color(0xFFF4DE9F) : const Color(0xFF4C3913),
       onSecondary: dark ? const Color(0xFF35290F) : Colors.white,
       surface: dark ? const Color(0xFF10271E) : const Color(0xFFFFFDF7),
       onSurface: dark ? const Color(0xFFEDF2E9) : const Color(0xFF142C21),
