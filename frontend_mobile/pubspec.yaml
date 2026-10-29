@@ -2,7 +2,7 @@ name: smart_sports_hub
 description: A new Flutter project for Smart Sports Hub.
 publish_to: 'none'
 
-version: 1.0.3+4
+version: 1.0.4+5
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -39,3 +39,4 @@ flutter:
   assets:
     - assets/logo.jpg
     - assets/clubhouse/
+    - assets/gear/

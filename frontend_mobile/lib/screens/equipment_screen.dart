@@ -6,16 +6,28 @@ import '../services/api_service.dart';
 import '../services/api_errors.dart';
 import '../services/live_refresh.dart';
 import '../services/payment_service.dart';
+import 'rental_shop_screen.dart';
 
-class EquipmentScreen extends StatefulWidget {
+class EquipmentScreen extends StatelessWidget {
   final int? venueId;
   const EquipmentScreen({super.key, this.venueId});
+
   @override
-  State<EquipmentScreen> createState() => _EquipmentScreenState();
+  Widget build(BuildContext context) =>
+      context.watch<AuthProvider>().user?['role'] == 'ADMIN'
+          ? _AdminEquipmentScreen(venueId: venueId)
+          : RentalShopScreen(venueId: venueId);
 }
 
-class _EquipmentScreenState extends State<EquipmentScreen>
-    with LiveRefresh<EquipmentScreen> {
+class _AdminEquipmentScreen extends StatefulWidget {
+  final int? venueId;
+  const _AdminEquipmentScreen({this.venueId});
+  @override
+  State<_AdminEquipmentScreen> createState() => _EquipmentScreenState();
+}
+
+class _EquipmentScreenState extends State<_AdminEquipmentScreen>
+    with LiveRefresh<_AdminEquipmentScreen> {
   final _api = ApiService();
   List<dynamic> _items = [], _rentals = [];
   DateTime _start =
