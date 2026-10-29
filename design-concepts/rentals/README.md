@@ -1,6 +1,16 @@
 # Mobile equipment rentals — design review
 
-29 October 2026. Approved direction implemented in the Flutter customer app as version 1.0.4+5.
+29 October 2026. Customer redesign introduced in 1.0.4+5; admin inventory and rental management added in 1.0.5+6.
+
+## Admin equipment management — 1.0.5+6
+
+The former read-only catalogue/desk has been replaced with three separate admin workspaces: Inventory, Rentals and History. Inventory is a searchable list with stock, daily rate, active state and an edit pencil on every row. Active/inactive filters and an Add equipment action are available above the list. Stock labels refer to total inventory, not date-specific availability.
+
+Add/edit opens a dedicated scrolling form for name, sport, compatible venue or shared inventory, daily unit price, total stock, rental availability, description, brand, model/size, material, ball type, condition and image URL. Saves use the existing admin-only POST/PUT endpoints. All stored fields are validated even when scrolled out of view. Errors retain the edits and show the server restriction beside the persistent save button. Switching sport clears the venue selection so a mismatched venue is not silently submitted. Turning rental availability off stops new rentals while retaining history.
+
+Rentals and History have separate lists, status filters and searches for equipment, customer, venue or rental ID. Tapping a rental opens customer, inventory, dates, quantity, price and payment details. Staff can cancel applicable rentals with confirmation, or record a return from collection day onward with damaged quantity and inspection notes. Existing server stock/refund rules remain authoritative. No payment, refund, inventory update or return was performed against live user data during automated validation.
+
+`admin-implementation/` contains actual Flutter captures of the inventory list, editor and active rentals in both themes, using labelled sample fixture data. Reproduce with `flutter test --no-pub --dart-define=RENDER_ADMIN_RENTALS=true`. Full mobile suite: 62 tests passed. Analysis of lib and test: no issues. Tests cover admin routing, real save payloads, create/edit, compatible venue selection, search/filter behavior, server-rejected edits retaining values, validation of offscreen fields, damage inspection, cancellation, future-return restrictions, and 320px layouts at 150% text size, alongside the customer regressions.
 
 ## Implementation
 
