@@ -3,7 +3,7 @@ const prisma = require('../lib/prisma');
 
 const getVenueReviews = async (req, res) => {
   try {
-    const { id: venueId } = req.params;
+    const venueId = req.params.id ?? req.params.venueId;
     const reviews = await prisma.review.findMany({
       where: { venueId: parseInt(venueId) },
       include: { user: { select: { id: true, name: true } } },
@@ -18,7 +18,7 @@ const getVenueReviews = async (req, res) => {
 
 const createReview = async (req, res) => {
   try {
-    const { id: venueId } = req.params;
+    const venueId = req.params.id ?? req.params.venueId;
     const { rating, comment, bookingId } = req.body;
     if (!Number.isInteger(Number(rating)) || Number(rating) < 1 || Number(rating) > 5) return res.status(400).json({ success: false, message: 'Rating must be an integer from 1 to 5' });
     
@@ -26,18 +26,20 @@ const createReview = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Rating and bookingId are required' });
     }
 
+    if (!Number.isSafeInteger(Number(bookingId)) || Number(bookingId) < 1 || !Number.isSafeInteger(Number(venueId)) || Number(venueId) < 1 || (comment != null && (typeof comment !== 'string' || comment.length > 500))) return res.status(400).json({ success: false, message: 'Valid booking, venue and comment up to 500 characters required' });
+
     // Verify booking
     const booking = await prisma.booking.findFirst({
       where: { 
         id: parseInt(bookingId), 
         userId: req.user.id, 
         slot: { venueId: parseInt(venueId) },
-        status: { in: ['CONFIRMED', 'SCANNED'] }
+        status: 'SCANNED'
       }
     });
 
     if (!booking) {
-      return res.status(403).json({ success: false, message: 'Valid confirmed booking required to leave a review' });
+      return res.status(403).json({ success: false, message: 'A checked-in booking at this venue is required to leave a review' });
     }
 
     const review = await prisma.review.upsert({

@@ -1,5 +1,6 @@
 // Repeatable acceptance checks against ONLY the isolated local demo database.
 require('dotenv').config({ quiet: true });
+process.env.FIREBASE_ENABLED = 'false'; // Automated QA never sends real notifications.
 const assert = require('node:assert/strict');
 const database = new URL(process.env.DATABASE_URL);
 if (process.env.NODE_ENV === 'production' || database.hostname !== '127.0.0.1' || database.port !== '3307' || database.pathname !== '/smart_sports_hub_demo') throw new Error('Requires isolated local demo database');

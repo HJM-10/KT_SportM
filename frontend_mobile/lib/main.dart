@@ -15,15 +15,29 @@ import 'providers/theme_provider.dart';
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/events_screen.dart';
 import 'screens/equipment_screen.dart';
+import 'screens/promo_codes_screen.dart';
 import 'screens/membership_screen.dart';
 import 'screens/complaints_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/payments_screen.dart';
 
+final _messengerKey = GlobalKey<ScaffoldMessengerState>();
 final _navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  PushService.onOpen = () => WidgetsBinding.instance.addPostFrameCallback((_) {
+        _navigatorKey.currentState?.pushNamed('/notifications');
+      });
+  PushService.onForeground = (title, body) {
+    _messengerKey.currentState?.showSnackBar(SnackBar(
+      content: Text('$title: $body'),
+      action: SnackBarAction(
+          label: 'View',
+          onPressed: () =>
+              _navigatorKey.currentState?.pushNamed('/notifications')),
+    ));
+  };
   await PushService.initialize();
   runApp(
     MultiProvider(
@@ -45,6 +59,7 @@ class SmartSportsHubApp extends StatelessWidget {
       builder: (context, themeProvider, _) {
         return MaterialApp(
           navigatorKey: _navigatorKey,
+          scaffoldMessengerKey: _messengerKey,
           title: 'KT Smart Sport Hub',
           debugShowCheckedModeBanner: false,
           themeMode: themeProvider.themeMode,
@@ -56,6 +71,7 @@ class SmartSportsHubApp extends StatelessWidget {
             '/signup': (context) => const SignupScreen(),
             '/events': (context) => const EventsScreen(),
             '/equipment': (context) => const EquipmentScreen(),
+            '/promo': (context) => const PromoCodesScreen(),
             '/membership': (context) => const MembershipScreen(),
             '/complaints': (context) => const ComplaintsScreen(),
             '/notifications': (context) => const NotificationsScreen(),

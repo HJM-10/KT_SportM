@@ -27,6 +27,7 @@ class AuthProvider with ChangeNotifier {
 
     // The user requested that the app should ALWAYS ask for a password on startup.
     // So we clear any existing token instead of attempting to auto-login.
+    if (await _apiService.storage.read(key: 'ssh_token') != null) await PushService.unregister();
     await _apiService.storage.delete(key: 'ssh_token');
     _user = null;
     _isAuthenticated = false;

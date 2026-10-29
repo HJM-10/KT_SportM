@@ -7,7 +7,7 @@ async function settle(session) {
   if (session.payment_status !== 'paid') return;
   const id = Number(session.metadata?.paymentId);
   if (!Number.isSafeInteger(id)) throw new Error('Missing payment reference');
-  await transaction(async tx => {
+  const notification = await transaction(async tx => {
     await tx.payment.update({ where: { id }, data: { updatedAt: new Date() } });
     const payment = await tx.payment.findUnique({ where: { id } });
     if (!payment || session.amount_total !== Math.round(payment.amount * 100) || session.currency !== payment.currency.toLowerCase()) throw new Error('Payment amount or currency mismatch');
@@ -15,16 +15,18 @@ async function settle(session) {
     if (payment.stripePaymentIntentId === session.payment_intent) return;
     if (['PAID', 'REFUNDED'].includes(payment.status)) { await queueRefund(tx, payment, session.payment_intent); return; }
     let payable = true;
-    try { await assertPayable(tx, payment); } catch { payable = false; }
-    await tx.payment.update({ where: { id }, data: { status: 'PAID', stripePaymentIntentId: session.payment_intent } });
+    try { await assertPayable(tx, payment); } catch (error) { if (error.status !== 409) throw error; payable = false; }
+    await tx.payment.update({ where: { id }, data: { status: 'PAID', paidAt: new Date(), stripePaymentIntentId: session.payment_intent } });
     if (!payable) { await require('../lib/reservation-lifecycle').releaseReservation(tx, payment); await queueRefund(tx, payment, session.payment_intent); return; }
     if (payment.bookingId) {
       const changed = await tx.booking.updateMany({ where: { id: payment.bookingId, status: 'PENDING_PAYMENT' }, data: { status: 'CONFIRMED' } });
       if (!changed.count) throw new Error('Booking requires payment reconciliation');
     }
-    if (payment.membershipId) await tx.membership.update({ where: { id: payment.membershipId }, data: { isActive: true } });
-    await tx.notification.create({ data: { userId: payment.userId, title: 'Payment received', body: `Payment #${id} of ${payment.currency} ${payment.amount} was received.`, type: 'PAYMENT' } });
+    if (payment.membershipId) await require('../lib/membership').activateMembership(tx, payment);
+    if (payment.rentalId) await tx.equipmentRental.update({ where: { id: payment.rentalId }, data: { status: 'CONFIRMED' } });
+    return tx.notification.create({ data: { userId: payment.userId, title: 'Payment received', body: `Payment #${id} of ${payment.currency} ${payment.amount} was received.`, type: 'PAYMENT' } });
   });
+  if (notification) await require('../lib/notifications').deliverNotification(notification);
   emitChange();
 }
 
@@ -78,5 +80,17 @@ async function webhook(req, res) {
     res.json({ received: true });
   } catch (error) { console.error('Stripe settlement failed:', error.message); res.sendStatus(500); }
 }
-module.exports = { checkout, webhook, settle };
+async function reconcile(req, res, next) {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ success: false, message: 'Valid payment ID required' });
+    const payment = await prisma.payment.findUnique({ where: { id } });
+    if (!payment) return res.status(404).json({ success: false, message: 'Payment not found' });
+    if (!payment.stripeCheckoutSessionId) return res.status(409).json({ success: false, message: 'No online checkout exists for this payment' });
+    const session = await getStripe().checkout.sessions.retrieve(payment.stripeCheckoutSessionId);
+    await settle(session);
+    res.json({ success: true, data: await prisma.payment.findUnique({ where: { id }, include: { refunds: true } }) });
+  } catch (e) { next(e); }
+}
+module.exports = { checkout, webhook, settle, reconcile };
 

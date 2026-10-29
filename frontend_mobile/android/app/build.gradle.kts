@@ -5,6 +5,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Allow local builds without a Firebase project; configured builds use native
+// resources so FCM can receive notifications after Android restarts the process.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.smart_sports_hub"
     compileSdk = flutter.compileSdkVersion

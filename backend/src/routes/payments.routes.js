@@ -9,6 +9,7 @@ router.post('/checkout', require('../controllers/checkout.controller').checkout)
 
 router.post('/initiate', initiatePayment);
 router.post('/confirm', requireAdmin, confirmPayment);
+router.post('/:id/reconcile', requireAdmin, require('../controllers/checkout.controller').reconcile);
 router.post('/refunds/:id/cash', requireAdmin, require('../controllers/payments.controller').completeCashRefund);
 router.post('/refunds/retry', requireAdmin, require('../controllers/payments.controller').retryRefunds);
 router.get('/my', getMyPayments);

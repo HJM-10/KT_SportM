@@ -6,7 +6,7 @@ const socket = require('../lib/socket');
 const submitComplaint = async (req, res) => {
   try {
     const { title, description, category } = req.body;
-    if (!title || !description) {
+    if (typeof title !== 'string' || !title.trim() || title.length > 191 || typeof description !== 'string' || !description.trim() || description.length > 10000 || (category != null && (typeof category !== 'string' || category.length > 191))) {
       return res.status(400).json({ success: false, message: 'Title and description are required' });
     }
 
@@ -63,6 +63,8 @@ const updateComplaintStatus = async (req, res) => {
     const { id } = req.params;
     const { status, adminNote } = req.body;
 
+    if (!Number.isSafeInteger(Number(id)) || Number(id) < 1 || (status === undefined && adminNote === undefined) || (adminNote !== undefined && (typeof adminNote !== 'string' || adminNote.length > 10000))) return res.status(400).json({ success: false, message: 'Valid complaint status or response required' });
+
     const complaint = await prisma.complaint.findUnique({ where: { id: parseInt(id) } });
     if (!complaint) return res.status(404).json({ success: false, message: 'Complaint not found' });
 
@@ -71,11 +73,11 @@ const updateComplaintStatus = async (req, res) => {
       data: { status, adminNote }
     });
 
-    if (status !== complaint.status) {
+    if ((status !== undefined && status !== complaint.status) || (adminNote !== undefined && adminNote !== complaint.adminNote)) {
       await createNotification(
         complaint.userId, 
         'Complaint Update', 
-        `Your complaint "${complaint.title}" status has been updated to ${status}.`,
+        `Your complaint "${complaint.title}" has an update: ${status || complaint.status}.${adminNote ? ' Response: ' + adminNote : ''}`,
         'COMPLAINT'
       );
     }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../api/axios';
 import { Star, MessageSquare } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 const StarRating = ({ rating }) => (
   <div style={{ display: 'flex', gap: 2 }}>
@@ -17,6 +18,7 @@ const StarRating = ({ rating }) => (
 );
 
 const ReviewsPage = () => {
+  const [removing, setRemoving] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -80,7 +82,7 @@ const ReviewsPage = () => {
                 <th>Venue</th>
                 <th>Rating</th>
                 <th>Comment</th>
-                <th>Date</th>
+                <th>Date</th><th>Moderation</th>
               </tr>
             </thead>
             <tbody>
@@ -100,12 +102,14 @@ const ReviewsPage = () => {
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                     {new Date(review.createdAt).toLocaleDateString()}
                   </td>
+                  <td><button className="btn btn-danger" onClick={() => setRemoving(review.id)}>Remove review</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+      <ConfirmModal isOpen={removing !== null} title="Remove review" message="Remove this review from the venue's public feedback?" isDanger onCancel={() => setRemoving(null)} onConfirm={async () => { try { await api.delete(`/reviews/${removing}`); setRemoving(null); fetchReviews(); } catch { toast.error('Could not remove review'); } }} />
     </div>
   );
 };

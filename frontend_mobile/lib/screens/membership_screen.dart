@@ -2,6 +2,7 @@ import '../services/live_refresh.dart';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/payment_service.dart';
+import '../services/api_errors.dart';
 
 class MembershipScreen extends StatefulWidget {
   const MembershipScreen({super.key});
@@ -19,6 +20,7 @@ class _MembershipScreenState extends State<MembershipScreen>
   final ApiService _apiService = ApiService();
   Map<String, dynamic>? _membership;
   bool _isLoading = true;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -41,10 +43,13 @@ class _MembershipScreenState extends State<MembershipScreen>
   }
 
   Future<void> _purchaseTier(String tier) async {
+    if (_busy) return;
+    setState(() => _busy = true);
     try {
       final res = await _apiService.dio
           .post('/membership/purchase', data: {'tier': tier});
       if (res.data['success']) {
+        await _fetchMembership();
         if (res.data['data']['paymentId'] != null) {
           await PaymentService.checkout(res.data['data']['paymentId']);
         }
@@ -57,7 +62,9 @@ class _MembershipScreenState extends State<MembershipScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Failed to purchase')));
+          .showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -72,7 +79,7 @@ class _MembershipScreenState extends State<MembershipScreen>
                 children: [
                   if (_membership != null) ...[
                     Card(
-                  color: const Color(0xFFE8D6A9),
+                      color: const Color(0xFFE8D6A9),
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Column(
@@ -87,10 +94,7 @@ class _MembershipScreenState extends State<MembershipScreen>
                                 style: const TextStyle(
                                     fontSize: 16, color: Colors.black87)),
                             const SizedBox(height: 8),
-                            Text(
-                                _membership!['isActive']
-                                    ? 'ACTIVE'
-                                    : 'PENDING PAYMENT',
+                            Text(_membership!['status'] ?? 'INACTIVE',
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.black54)),
@@ -98,15 +102,38 @@ class _MembershipScreenState extends State<MembershipScreen>
                         ),
                       ),
                     ),
+                    Text(_membership!['endDate'] == null
+                        ? 'Basic card has no expiry'
+                        : 'Valid until ${_membership!['endDate'].toString().split('T').first}'),
                     const SizedBox(height: 24),
                   ],
                   const Text('Available Tiers',
                       style:
                           TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
+                  _buildTierCard('BASIC', 'Free arena membership card', 0),
                   _buildTierCard(
                       'SILVER', '10% Discount on all bookings', 1000),
                   _buildTierCard('GOLD', '20% Discount on all bookings', 2500),
+                  const Text(
+                      'Renewals add one year to your current expiry. Upgrades cost the full annual price and begin a new year when paid. Current benefits remain until payment.'),
+                  const SizedBox(height: 24),
+                  const Text('Membership history',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  for (final h in (_membership?['history'] as List? ?? []))
+                    ListTile(
+                      title: Text('${h['kind']} · ${h['tier']}'),
+                      subtitle: Text(
+                          '${h['payment']?['status'] ?? h['status']} · ${h['createdAt'].toString().split('T').first}'),
+                      trailing: h['status'] == 'PENDING' &&
+                              h['payment']?['status'] == 'PENDING'
+                          ? TextButton(
+                              onPressed:
+                                  _busy ? null : () => _purchaseTier(h['tier']),
+                              child: const Text('Pay'))
+                          : null,
+                    ),
                 ],
               ));
   }
@@ -138,8 +165,12 @@ class _MembershipScreenState extends State<MembershipScreen>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => _purchaseTier(tier),
-                child: const Text('Upgrade'),
+                onPressed: _busy ? null : () => _purchaseTier(tier),
+                child: Text(_membership?['isActive'] == true &&
+                        _membership?['tier'] == tier &&
+                        tier != 'BASIC'
+                    ? 'Renew'
+                    : 'Choose $tier'),
               ),
             )
           ],

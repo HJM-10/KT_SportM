@@ -1,85 +1,45 @@
-const handleError = require('../middleware/errorHandler');
 const prisma = require('../lib/prisma');
+const transaction = require('../lib/transaction');
 const { randomUUID } = require('node:crypto');
-
-const getMyMembership = async (req, res) => {
-  try {
-    const membership = await prisma.membership.findUnique({
-      where: { userId: req.user.id }
-    });
-    res.json({ success: true, data: membership });
-  } catch (err) {
-    console.error(err);
-    handleError(err, req, res);
-  }
+const { prices, active } = require('../lib/membership');
+const { createNotification } = require('../lib/notifications');
+const include = { history: { orderBy: { createdAt: 'desc' }, include: { payment: { select: { id: true, amount: true, status: true } } } } };
+const present = card => card && { ...card, isActive: active(card), status: active(card) ? 'ACTIVE' : card.endDate && card.endDate <= new Date() ? 'EXPIRED' : 'INACTIVE' };
+exports.getMyMembership = async (req, res, next) => {
+  try { res.json({ success: true, data: present(await prisma.membership.findUnique({ where: { userId: req.user.id }, include })) }); } catch (e) { next(e); }
 };
-
-const getAllMemberships = async (req, res) => {
-  try {
-    const memberships = await prisma.membership.findMany({
-      include: { user: { select: { id: true, name: true, email: true } } },
-      orderBy: { createdAt: 'desc' }
-    });
-    res.json({ success: true, data: memberships });
-  } catch (err) {
-    console.error(err);
-    handleError(err, req, res);
-  }
+exports.getAllMemberships = async (req, res, next) => {
+  try { res.json({ success: true, data: (await prisma.membership.findMany({ include: { ...include, user: { select: { id: true, name: true, email: true } } }, orderBy: { createdAt: 'desc' } })).map(present) }); } catch (e) { next(e); }
 };
-
-const purchaseMembership = async (req, res) => {
+exports.purchaseMembership = async (req, res, next) => {
   try {
     const { tier } = req.body;
-    if (!['BASIC', 'SILVER', 'GOLD'].includes(tier)) {
-      return res.status(400).json({ success: false, message: 'Invalid membership tier' });
-    }
-
-    let amount = 0;
-    if (tier === 'SILVER') amount = 1000;
-    if (tier === 'GOLD') amount = 2500;
-
-    const result = await prisma.$transaction(async (tx) => {
-      const existing = await tx.membership.findUnique({ where: { userId: req.user.id } });
-      if (existing) {
-        const payment = await tx.payment.findUnique({ where: { membershipId: existing.id } });
-        if (payment?.status === 'PENDING' && existing.tier === tier) return { ...existing, paymentId: payment.id };
-        if (payment || existing.isActive) throw Object.assign(new Error('Contact arena staff to change an existing membership; your current card and payment history are retained'), { status: 409 });
-      }
-      
-      const membership = await tx.membership.upsert({
-        where: { userId: req.user.id },
-        update: { tier, isActive: amount === 0 }, // If basic (free), active immediately
-        create: {
-          userId: req.user.id,
-          tier,
-          cardNumber: `SSH-${randomUUID()}`,
-          isActive: amount === 0
+    if (!Object.hasOwn(prices, tier)) return res.status(400).json({ success: false, message: 'Invalid membership tier' });
+    const result = await transaction(async tx => {
+      // Lock a stable parent even for a first purchase, serializing concurrent requests.
+      await tx.user.update({ where: { id: req.user.id }, data: { updatedAt: new Date() } });
+      let card = await tx.membership.findUnique({ where: { userId: req.user.id } });
+      if (card) {
+        const pending = await tx.membershipChange.findFirst({ where: { membershipId: card.id, status: 'PENDING' }, include: { payment: true } });
+        if (pending) {
+          if (pending.tier === tier && pending.payment?.status === 'PENDING' && (!pending.payment.expiresAt || pending.payment.expiresAt > new Date())) return { ...present(card), paymentId: pending.paymentId, amount: pending.payment.amount };
+          if (pending.payment?.status === 'PENDING' && pending.payment.expiresAt <= new Date()) {
+            await tx.payment.update({ where: { id: pending.paymentId }, data: { status: 'FAILED' } });
+            await tx.membershipChange.update({ where: { id: pending.id }, data: { status: 'EXPIRED' } });
+          } else throw Object.assign(new Error('Complete the pending membership payment before choosing another plan'), { status: 409 });
         }
-      });
-
-      if (amount > 0) {
-
-        const payment = await tx.payment.create({
-          data: {
-            userId: req.user.id,
-            amount,
-            purpose: 'MEMBERSHIP',
-            membershipId: membership.id,
-            status: 'PENDING'
-          }
-        });
-        membership.paymentId = payment.id;
+        if (active(card) && (prices[tier] < prices[card.tier] || tier === 'BASIC')) throw Object.assign(new Error('Choose the current paid tier to renew, or a higher tier to upgrade. Downgrades are available after expiry.'), { status: 409 });
       }
-
-      return membership;
+      const kind = !card || !active(card) ? 'PURCHASE' : card.tier === tier ? 'RENEWAL' : 'UPGRADE';
+      if (!card) card = await tx.membership.create({ data: { userId: req.user.id, cardNumber: `SSH-${randomUUID()}`, tier: 'BASIC', isActive: false } });
+      const amount = prices[tier];
+      const payment = amount ? await tx.payment.create({ data: { userId: req.user.id, membershipId: card.id, amount, purpose: 'MEMBERSHIP', expiresAt: new Date(Date.now() + 30 * 60000) } }) : null;
+      const now = new Date();
+      await tx.membershipChange.create({ data: { membershipId: card.id, paymentId: payment?.id, tier, kind, status: amount ? 'PENDING' : 'ACTIVE', ...(!amount ? { startDate: now, activatedAt: now } : {}) } });
+      if (!amount) card = await tx.membership.update({ where: { id: card.id }, data: { tier, isActive: true, startDate: now, endDate: null } });
+      return { ...present(card), paymentId: payment?.id, amount };
     });
-
+    if (!result.amount) await createNotification(req.user.id, 'Membership activated', 'Your Basic membership card is active.', 'MEMBERSHIP');
     res.status(201).json({ success: true, data: result });
-  } catch (err) {
-    console.error(err);
-    handleError(err, req, res);
-  }
+  } catch (e) { next(e); }
 };
-
-module.exports = { getMyMembership, getAllMemberships, purchaseMembership };
-
